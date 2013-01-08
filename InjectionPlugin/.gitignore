@@ -1,0 +1,13 @@
+*.class
+
+*.jar
+*.war
+*.ear
+
+bin/*
+.settings/*
+.classpath
+.project
+jarSettings.jardesc
+/.settings
+/bin

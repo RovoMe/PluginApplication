@@ -1,0 +1,3 @@
+Manifest-Version: 1.0
+Plugin-Class: at.rovo.plugin.injection.ControllerWithInjections
+Created-By: Roman Vottner
