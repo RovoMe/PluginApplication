@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>at.rovo.plugin</groupId>
+  <artifactId>PluginFramework</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>Plugin Framework</name>
+  <url>https://github.com/RovoMe/PluginApplication</url>
+  
+  <description>A simple application which enables hot deployment of plugins and basic dependency injection into fields annotated with @Inject for @Component annotated classes.
+
+Every plugin is loaded by a new class loader to enable dynamically un- and reloading of plug-ins. 
+
+Moreover the application is able to handle singletons appropriately in that they are kept in an own classloader which is the parent class loader of the non-singleton classes of a plugin.
+
+This all is achieved without any locks kept on jar files or extracting the content of a jar file to a temporary directory. So automatic unloading of a plugin on removing the plugin from the plugin directory is enabled</description>
+  
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.1</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+  
+  <build>
+    <plugins>
+      <!-- compiler settings -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.5</version>
+        <configuration>
+          <source>1.7</source>
+          <target>1.7</target>
+          <showDeprecation>true</showDeprecation>
+          <showWarnings>true</showWarnings>
+          <optimize>true</optimize>
+        </configuration>
+      </plugin>			  
+    </plugins>
+  </build>
+
+  <modules>
+    <module>PluginInterface</module>
+    <module>PluginCore</module>
+  </modules>
+
+</project>
