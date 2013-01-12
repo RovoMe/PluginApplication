@@ -1,11 +1,14 @@
 *.class
 
+*~
 *.jar
 *.war
 *.ear
 
 .settings
-.project
 .classpath
+.project
+
+bin
 target/*
-/target
+
