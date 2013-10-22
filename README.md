@@ -26,7 +26,7 @@ Running the framework
 * `list` - lists all currently loaded plugins
 	 
 * `load relativePathOfPluginJar` - loads a plugin jar using the name of the jar file that contains the plugin. 
-  Example: load ./SimpleInjectionPlugin.jar if a jar file with this name is located in the plugin sub-directory 
+  Example: `load ./SimpleInjectionPlugin.jar` if a jar file with this name is located in the plugin sub-directory 
   of PluginClient
 	   
 * `unload id` - unloads a plugin using the ID as stated by list command
