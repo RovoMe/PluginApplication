@@ -177,19 +177,19 @@ public class InjectionPluginManager extends PluginManager
 					// and remove the added jar file to prevent following classes
 					// from being loaded by the singleton class loader
 					this.pluginStrategy.setClassPath(cpBefore);
-					System.out.println("[PluginManager.loadPlugin] Used Singleton-ClassLoader for "+result+" with classloader "+result.getClassLoader());
+//					System.out.println("[PluginManager.loadPlugin] Used Singleton-ClassLoader for "+result+" with classloader "+result.getClassLoader());
 				}
 				else
 				{
 					loader.addStrategy(injector);
 					result = loader.loadClass(pluginName);
-					System.out.println("[PluginManager.loadPlugin] Used plugin-specific-ClassLoader for "+result+" with classloader "+result.getClassLoader());
+//					System.out.println("[PluginManager.loadPlugin] Used plugin-specific-ClassLoader for "+result+" with classloader "+result.getClassLoader());
 				}
 			}
 			else
 			{
 				result = loader.loadClass(pluginName);
-				System.out.println("[PluginManager.loadPlugin] Used a plug-in ClassLoader for "+result+" with classloader "+result.getClassLoader());
+//				System.out.println("[PluginManager.loadPlugin] Used a plug-in ClassLoader for "+result+" with classloader "+result.getClassLoader());
 			}
 			
 			return result;
