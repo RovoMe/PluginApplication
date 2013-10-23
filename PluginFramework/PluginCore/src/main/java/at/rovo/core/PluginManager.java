@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -28,32 +27,42 @@ import at.rovo.plugin.IPlugin;
 import at.rovo.plugin.PluginException;
 
 /**
- * <p><code>PluginManager</code> takes care of the loading of plug-ins in a specified 
- * directory, which can be set with the {@link #setPluginDirectory(String)}-Method.
- * Classes interested in notification of loading or unloading from or exception
- * thrown by plug-ins can register themselves with <code>PluginManager</code> via
- * the {@link #addPluginListener(IPluginListener)}-method.</p>
- * <p>This class provides several methods to actually load plug-ins:</p>
- * <li>{@link #loadPlugins()}: Loads all plug-ins located in the directory 
- *     defined by {@link #setPluginDirectory(String)}</li>
- * <li>{@link #loadAllPluginsFromDirectory(File)}: Loads all plug-ins located 
- *     in a directory which has to be provided as argument.</li>
- * <li>{@link #reloadPlugin(File)}: (Re)Loads a specific plug-in</li>
- * <p>Every plug-in gets loaded by a different {@link ClassLoader} to provide
- * a mechanism to unload an unneeded or reload an updated plug-in at runtime 
- * without having to tear down the whole system.</p>
- * <p>As with the loading, <code>PluginManager</code> provides two methods to
- * remove plug-ins from the system:</p>
- * <li>{@link #unloadAll()}: Unloads every loaded plug-in.</li>
- * <li>{@link #unload(String)}: Unloads a specific plug-in.</li>
- * <p>The unloading of loaded classes is not guaranteed as they get unloaded 
- * by the garbage collector. If any class does have a valid reference to a
- * class defined by the plug-in, unloading of the plug-in will fail.</p>
+ * <p>
+ * <code>PluginManager</code> takes care of the loading of plug-ins in a
+ * specified directory, which can be set with the
+ * {@link #setPluginDirectory(String)}-Method. Classes interested in
+ * notification of loading or unloading from or exception thrown by plug-ins can
+ * register themselves with <code>PluginManager</code> via the
+ * {@link #addPluginListener(IPluginListener)}-method.
+ * </p>
+ * <p>
+ * This class provides several methods to actually load plug-ins:
+ * </p>
+ * <li>{@link #loadPlugins()}: Loads all plug-ins located in the directory
+ * defined by {@link #setPluginDirectory(String)}</li> <li>
+ * {@link #loadAllPluginsFromDirectory(File)}: Loads all plug-ins located in a
+ * directory which has to be provided as argument.</li> <li>
+ * {@link #reloadPlugin(File)}: (Re)Loads a specific plug-in</li>
+ * <p>
+ * Every plug-in gets loaded by a different {@link ClassLoader} to provide a
+ * mechanism to unload an unneeded or reload an updated plug-in at runtime
+ * without having to tear down the whole system.
+ * </p>
+ * <p>
+ * As with the loading, <code>PluginManager</code> provides two methods to
+ * remove plug-ins from the system:
+ * </p>
+ * <li>{@link #unloadAll()}: Unloads every loaded plug-in.</li> <li>
+ * {@link #unload(String)}: Unloads a specific plug-in.</li>
+ * <p>
+ * The unloading of loaded classes is not guaranteed as they get unloaded by the
+ * garbage collector. If any class does have a valid reference to a class
+ * defined by the plug-in, unloading of the plug-in will fail.
+ * </p>
  * 
  * @author Roman Vottner
  * @version 0.1
  */
-@SuppressWarnings("unused")
 public abstract class PluginManager implements IDirectoryChangeListener
 {
 	/** The directory plug-ins should be found **/
@@ -65,7 +74,9 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	protected Set<IPluginListener> listeners;
 	
 	/**
-	 * <p>Instantiates the instance with required initial setups.</p>
+	 * <p>
+	 * Instantiates the instance with required initial setups.
+	 * </p>
 	 */
 	protected PluginManager()
 	{
@@ -74,12 +85,18 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 		
 	/**
-	 * <p>Sets the directory <code>PluginManager</code> should look for plug-ins. After
-	 * a valid directory got set, <code>PluginManager</code> starts watching for modified
-	 * files.</p>
-	 * @param dir Directory containing plug-ins
-	 * @throws FileNotFoundException if the directory does not exist
-	 * @throws IOException if the file is not an directory
+	 * <p>
+	 * Sets the directory <code>PluginManager</code> should look for plug-ins.
+	 * After a valid directory got set, <code>PluginManager</code> starts
+	 * watching for modified files.
+	 * </p>
+	 * 
+	 * @param dir
+	 *            Directory containing plug-ins
+	 * @throws FileNotFoundException
+	 *             if the directory does not exist
+	 * @throws IOException
+	 *             if the file is not an directory
 	 */
 	public void setPluginDirectory(String dir) throws FileNotFoundException, IOException
 	{
@@ -100,7 +117,10 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Retrieves the directory <code>PluginManager</code> looks for plug-ins</p>
+	 * <p>
+	 * Retrieves the directory <code>PluginManager</code> looks for plug-ins
+	 * </p>
+	 * 
 	 * @return Absolute path of the plug-in-directory
 	 */
 	public String getPluginDirectory()
@@ -109,10 +129,14 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Adds a listener to an internal List to objects who get notified when a
-	 * plug-in has been loaded or removed.</p>
-	 * @param listener The object who wants to be notified when a plug-in get loaded
-	 *                 or removed from the system.
+	 * <p>
+	 * Adds a listener to an internal List to objects who get notified when a
+	 * plug-in has been loaded or removed.
+	 * </p>
+	 * 
+	 * @param listener
+	 *            The object who wants to be notified when a plug-in get loaded
+	 *            or removed from the system.
 	 */
 	public void addPluginListener(IPluginListener listener)
 	{
@@ -120,11 +144,15 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Removes a listener from the internal list of objects who get notified
-	 * when a plug-in has been loaded or removed.</p>
-	 * @param listener The object who wants to stop being notified when a plug-in
-	 *                 gets loaded or removed from the system.
-	 * @return Returns true if the listener could be removed from the list of 
+	 * <p>
+	 * Removes a listener from the internal list of objects who get notified
+	 * when a plug-in has been loaded or removed.
+	 * </p>
+	 * 
+	 * @param listener
+	 *            The object who wants to stop being notified when a plug-in
+	 *            gets loaded or removed from the system.
+	 * @return Returns true if the listener could be removed from the list of
 	 *         notified objects, false otherwise.
 	 */
 	public boolean removePluginListener(IPluginListener listener)
@@ -190,9 +218,12 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>This method returns the actual {@link ClassLoader} of 
-	 * the plug-in.</p>
-	 * @param pluginName Full name of the plug-in.
+	 * <p>
+	 * This method returns the actual {@link ClassLoader} of the plug-in.
+	 * </p>
+	 * 
+	 * @param pluginName
+	 *            Full name of the plug-in.
 	 * @return Returns the {@link ClassLoader} which loaded the plug-in
 	 */
 	public ClassLoader getClassLoaderOfPlugin(String pluginName)
@@ -201,12 +232,16 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	* <p>Returns a String array of filenames in the directory which are
-	* potential plug-in files.</p>
-	* @param dir The File object representing the directory to iterate
-	* through
-	*/
-	private String[] getPluginDirectoryContents(File dir)
+	 * <p>
+	 * Returns a String array of filenames in the directory which are potential
+	 * plug-in files.
+	 * </p>
+	 * 
+	 * @param dir
+	 *            The File object representing the directory to iterate through
+	 * @return The jar files contained in the plugin directory
+	 */
+	protected String[] getPluginDirectoryContents(File dir)
 	{
 		if (!dir.exists() || !dir.isDirectory())
 			return new String[0];
@@ -216,12 +251,15 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	* <p>Returns a String array of filenames in the directory which are
-	* .class files.</p>
-	* @param dir The File object representing the directory to iterate
-	* through
-	*/
-	private String[] getPluginDirClasses(File dir)
+	 * <p>
+	 * Returns a String array of filenames in the directory which are .class
+	 * files.
+	 * </p>
+	 * 
+	 * @param dir
+	 *            The File object representing the directory to iterate through
+	 */
+	protected String[] getPluginDirClasses(File dir)
 	{
 		if (!dir.exists() || !dir.isDirectory())
 			return new String[0];
@@ -231,35 +269,48 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	* Simple helper method to convert a List of URL objects into an
-	* array of URL objects (required by URLClassLoader)
-	*/
-	private URL[] ListToArray(List<URL> list)
+	 * Simple helper method to convert a List of URL objects into an array of
+	 * URL objects (required by URLClassLoader)
+	 * 
+	 * @param list A {@link List} of {@link URL}s
+	 * 
+	 * @return The elements of the provided list as an array of {@link URL}s
+	 */
+	protected URL[] ListToArray(List<URL> list)
 	{
 		return list.toArray(new URL[] {});
 	}
 	
 	/**
-	 * <p>Loads all plug-ins in the through {@link #setPluginDirectory(String)} 
-	 * defined directory. </p>
-	 * <p>A plug-in is either a compiled java-file (.class) or a zip-file 
-	 * containing compiled java-files (.jar).</p>
+	 * <p>
+	 * Loads all plug-ins in the through {@link #setPluginDirectory(String)}
+	 * defined directory.
+	 * </p>
+	 * <p>
+	 * A plug-in is either a compiled java-file (.class) or a zip-file
+	 * containing compiled java-files (.jar).
+	 * </p>
 	 */
 	public void loadPlugins()
 	{
-		File file = new File(this.pluginDir);
 		this.loadAllPluginsFromDirectory(new File(this.pluginDir));
 	}
 	
 	/**
-	 * <p>Loads all found .jar- or .zip-files from a certain directory
-	 * into the java virtual machine.</p>
-	 * <p>Every plug-in is loaded in a separate ClassLoader, which allows
-	 * Plug-ins to be unloaded from and reloaded into the system. Note however
-	 * that the unloading of already loaded classes is not guaranteed as they
-	 * are only unloaded by the garbage collector if no reference to the classes
-	 * to be unloaded exists anymore.</p>
-	 * @param dir Directory the plug-ins reside in
+	 * <p>
+	 * Loads all found .jar- or .zip-files from a certain directory into the
+	 * java virtual machine.
+	 * </p>
+	 * <p>
+	 * Every plug-in is loaded in a separate ClassLoader, which allows Plug-ins
+	 * to be unloaded from and reloaded into the system. Note however that the
+	 * unloading of already loaded classes is not guaranteed as they are only
+	 * unloaded by the garbage collector if no reference to the classes to be
+	 * unloaded exists anymore.
+	 * </p>
+	 * 
+	 * @param dir
+	 *            Directory the plug-ins reside in
 	 */
 	public void loadAllPluginsFromDirectory(File dir)
 	{
@@ -272,18 +323,23 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Loads or reloads a plug-in in from of a certain .jar- or .zip-
-	 * archive and looks in the MANIFEST/MANIFEST.MF-file, lying inside 
-	 * the archive, for a "Plugin-Class:"-entry to know which class in 
-	 * the archive will be the starting point.</p>
-	 * <p>Every plug-in is loaded in a separate ClassLoader, which allows
-	 * Plug-ins to be unloaded from and reloaded into the system. Note 
-	 * however that the unloading of already loaded classes is not 
-	 * guaranteed as they are only unloaded by the garbage collector if 
-	 * no reference to the classes to be unloaded exists anymore.</p>
-	 * @param jarFile .jar- or .zip-archive containing the class(es) to
-	 *                load and the MANIFEST/MANIFEST.MF-file describing
-	 *                what class to load first.
+	 * <p>
+	 * Loads or reloads a plug-in in from of a certain .jar- or .zip- archive
+	 * and looks in the MANIFEST/MANIFEST.MF-file, lying inside the archive, for
+	 * a "Plugin-Class:"-entry to know which class in the archive will be the
+	 * starting point.
+	 * </p>
+	 * <p>
+	 * Every plug-in is loaded in a separate ClassLoader, which allows Plug-ins
+	 * to be unloaded from and reloaded into the system. Note however that the
+	 * unloading of already loaded classes is not guaranteed as they are only
+	 * unloaded by the garbage collector if no reference to the classes to be
+	 * unloaded exists anymore.
+	 * </p>
+	 * 
+	 * @param jarFile
+	 *            .jar- or .zip-archive containing the class(es) to load and the
+	 *            MANIFEST/MANIFEST.MF-file describing what class to load first.
 	 */
 	public void reloadPlugin(File file)
 	{
@@ -317,17 +373,23 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Loads or reloads a plug-in, therefore this method caches the
-	 * archive and the class-name which represent the starting point of
-	 * the plug-in.</p>
-	 * <p>This method does not check the .jar or .zip-file if they 
-	 * contain a MANIFEST/MANIFEST.MF-file or the entry-point class-name, 
-	 * use {@link #reloadPlugin(File)} therefore.</p>
-	 * <p>Every plug-in is loaded in a separate ClassLoader, which allows
-	 * Plug-ins to be unloaded from and reloaded into the system. Note 
-	 * however that the unloading of already loaded classes is not 
-	 * guaranteed as they are only unloaded by the garbage collector if 
-	 * no reference to the classes to be unloaded exists anymore.</p>
+	 * <p>
+	 * Loads or reloads a plug-in, therefore this method caches the archive and
+	 * the class-name which represent the starting point of the plug-in.
+	 * </p>
+	 * <p>
+	 * This method does not check the .jar or .zip-file if they contain a
+	 * MANIFEST/MANIFEST.MF-file or the entry-point class-name, use
+	 * {@link #reloadPlugin(File)} therefore.
+	 * </p>
+	 * <p>
+	 * Every plug-in is loaded in a separate ClassLoader, which allows Plug-ins
+	 * to be unloaded from and reloaded into the system. Note however that the
+	 * unloading of already loaded classes is not guaranteed as they are only
+	 * unloaded by the garbage collector if no reference to the classes to be
+	 * unloaded exists anymore.
+	 * </p>
+	 * 
 	 * @param jarFile
 	 * @param pluginName
 	 */
@@ -357,12 +419,18 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Reloads a plug-in whose  .jar or .zip-file got already loaded
-	 * into the systems cache.</p>
-	 * <p>If a plug-in from a modified or newly added archive should be
-	 * loaded use {@link #reloadPlugin(File)} or 
-	 * {@link #reloadPlugin(File, String)} instead.</p>
-	 * @param pluginName Full name of the plug-in to reload.
+	 * <p>
+	 * Reloads a plug-in whose .jar or .zip-file got already loaded into the
+	 * systems cache.
+	 * </p>
+	 * <p>
+	 * If a plug-in from a modified or newly added archive should be loaded use
+	 * {@link #reloadPlugin(File)} or {@link #reloadPlugin(File, String)}
+	 * instead.
+	 * </p>
+	 * 
+	 * @param pluginName
+	 *            Full name of the plug-in to reload.
 	 */
 	protected void reloadPlugin(String pluginName)
 	{
@@ -370,12 +438,12 @@ public abstract class PluginManager implements IDirectoryChangeListener
 		try
 		{
 			URL fileURL = meta.getJarFileURL();
-			File jarFile = new File(fileURL.toURI());
 
 			Set<IClassLoaderStrategy> strategy = new HashSet<IClassLoaderStrategy>();
 			strategy.add(new PluginLoaderStrategy(fileURL));	
 			
-			StrategyClassLoader<IPlugin> pluginLoader = new StrategyClassLoader<>(this.getClass().getClassLoader(), strategy);
+			StrategyClassLoader<IPlugin> pluginLoader = 
+					new StrategyClassLoader<>(this.getClass().getClassLoader(), strategy);
 
 			meta.setClassLoader(pluginLoader);
 				
@@ -395,9 +463,12 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Creates a new instance of the main-class of a plug-in</p>
+	 * <p>
+	 * Creates a new instance of the main-class of a plug-in
+	 * </p>
 	 * 
-	 * @param name Name of the plug-in which should get instantiated
+	 * @param name
+	 *            Name of the plug-in which should get instantiated
 	 * @return Returns a new instance of the plug-ins' main class
 	 */
 	public IPlugin getNewPluginInstance(String name)
@@ -419,12 +490,16 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	* <p>Unloads all currently loaded plug-ins by calling {@link #unload(String)}
-	* for every found plug-in.</p>
-	* <p>Note that unloading plug-ins is not guaranteed as plug-ins get unloaded
-	* by the system garbage collector and if there is still a valid reference
-	* to a plug-in unloading will fail.</p>
-	*/
+	 * <p>
+	 * Unloads all currently loaded plug-ins by calling {@link #unload(String)}
+	 * for every found plug-in.
+	 * </p>
+	 * <p>
+	 * Note that unloading plug-ins is not guaranteed as plug-ins get unloaded
+	 * by the system garbage collector and if there is still a valid reference
+	 * to a plug-in unloading will fail.
+	 * </p>
+	 */
 	public void unloadAll()
 	{
 		java.util.Iterator<String> iter = this.pluginData.keySet().iterator();
@@ -435,14 +510,18 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Unloads a certain plug-in, if it has been loaded before. A 
-	 * reference to the .jar- or .zip-file which provided the plug-in 
-	 * remains in the system.</p>
-	 * <p>Note that unloading a plug-in is not guaranteed as the plug-in
-	 * gets unloaded by the system garbage collector and if there is still
-	 * a valid reference to the plug-in unloading will fail.</p>
+	 * <p>
+	 * Unloads a certain plug-in, if it has been loaded before. A reference to
+	 * the .jar- or .zip-file which provided the plug-in remains in the system.
+	 * </p>
+	 * <p>
+	 * Note that unloading a plug-in is not guaranteed as the plug-in gets
+	 * unloaded by the system garbage collector and if there is still a valid
+	 * reference to the plug-in unloading will fail.
+	 * </p>
 	 * 
-	 * @param name Full name of the plug-in to unload from the system.
+	 * @param name
+	 *            Full name of the plug-in to unload from the system.
 	 */
 	public void unload(String name)
 	{		
@@ -461,7 +540,10 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Returns a {@link Set} of loaded plug-ins by their full qualified name</p>
+	 * <p>
+	 * Returns a {@link Set} of loaded plug-ins by their full qualified name
+	 * </p>
+	 * 
 	 * @return {@link Set} of full qualified names of loaded plug-ins
 	 */
 	public Set<String> getLoadedPlugins()
@@ -470,14 +552,17 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	}
 	
 	/**
-	 * <p>Returns the full qualified name of the class defined in the MANIFEST.MF
-	 * file inside the META-INF-directory of the .jar- or .zip-file.</p>
+	 * <p>
+	 * Returns the full qualified name of the class defined in the MANIFEST.MF
+	 * file inside the META-INF-directory of the .jar- or .zip-file.
+	 * </p>
 	 * 
-	 * @param jarName Name of the .jar- or .zip-file containing the plug-in including 
-	 *                the path to the file
-	 * @return full qualified name of the class which defines the plug-in, empty 
+	 * @param jarName
+	 *            Name of the .jar- or .zip-file containing the plug-in
+	 *            including the path to the file
+	 * @return full qualified name of the class which defines the plug-in, empty
 	 *         {@link String} if the plug-in could not be found
-	 * @throws IOException 
+	 * @throws IOException
 	 */
 	public String getPluginNameBasedOnJar(String jarName)
 	{

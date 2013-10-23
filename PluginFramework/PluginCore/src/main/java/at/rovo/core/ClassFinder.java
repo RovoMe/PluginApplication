@@ -12,21 +12,30 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 /**
- * <p><code>ClassFinder</code> finds class files inside directories or jar
- * files and provides methods to find implementing classes of an interface.</p>
- * <p>It manages an own class-path by allowing a user to add directories 
- * and/or jar files via {@link #addToClassPath(String)} to it. </p>
- * <p>Further, it provides methods to find classes in directories via 
+ * <p>
+ * <code>ClassFinder</code> finds class files inside directories or jar files
+ * and provides methods to find implementing classes of an interface.
+ * </p>
+ * <p>
+ * It manages an own class-path by allowing a user to add directories and/or jar
+ * files via {@link #addToClassPath(String)} to it.
+ * </p>
+ * <p>
+ * Further, it provides methods to find classes in directories via
  * {@link #findClassFilesInDirectory(File, boolean)} or in jar files via
- * {@link #scanJarFileForClasses(File)}.</p>
- * <p>Implementations of a certain interface can be found via 
- * {@link #findImplementingClassesInDirectories(Class, ClassLoader)} or 
- * {@link #findImplementingClassesInJarFiles(Class, ClassLoader)}. If 
+ * {@link #scanJarFileForClasses(File)}.
+ * </p>
+ * <p>
+ * Implementations of a certain interface can be found via
+ * {@link #findImplementingClassesInDirectories(Class, ClassLoader)} or
+ * {@link #findImplementingClassesInJarFiles(Class, ClassLoader)}. If
  * implementations should be looked for in both directories and jar files
- * {@link #findImplementingClasses(Class, ClassLoader)} can be invoked.</p>
- * <p>Note that before finding classes in directories or jar files, 
- * directories or jar files have to be added to the class path of this
- * instance.</p>
+ * {@link #findImplementingClasses(Class, ClassLoader)} can be invoked.
+ * </p>
+ * <p>
+ * Note that before finding classes in directories or jar files, directories or
+ * jar files have to be added to the class path of this instance.
+ * </p>
  * 
  * @author Roman Vottner
  * @version 0.1
@@ -56,9 +65,10 @@ public class ClassFinder
 	}
 	
 	/**
-	 * <p>Creates a new instance of the <em>ClassFinder</em> if non 
-	 * was created before or returns the current instance for this 
-	 * class.</p>
+	 * <p>
+	 * Creates a new instance of the <em>ClassFinder</em> if non was created
+	 * before or returns the current instance for this class.
+	 * </p>
 	 * 
 	 * @return The instance of the <em>ClassFinder</em>
 	 */
@@ -70,11 +80,14 @@ public class ClassFinder
 	}
 	
 	/**
-	 * <p>Adds a certain path to the currently managed set of directories
-	 * or jar files to look for .class files.</p>
+	 * <p>
+	 * Adds a certain path to the currently managed set of directories or jar
+	 * files to look for .class files.
+	 * </p>
 	 * 
-	 * @param path The path to the directory or jar file to add to the 
-	 *             currently managed class path
+	 * @param path
+	 *            The path to the directory or jar file to add to the currently
+	 *            managed class path
 	 */
 	public void addToClassPath(String path)
 	{
@@ -85,15 +98,17 @@ public class ClassFinder
 	}
 	
 	/**
-	 * <p>Tries to find all implementing classes of a certain interface 
-	 * loaded by a specific {@link ClassLoader}</p>
+	 * <p>
+	 * Tries to find all implementing classes of a certain interface loaded by a
+	 * specific {@link ClassLoader}
+	 * </p>
 	 * 
-	 * @param iface The interface classes have to implement to be listed
-	 * @param loader The class loader the implementing classes got loaded 
-	 *               with
-	 * @return A {@link List} of implementing classes for the provided 
-	 *         interface. If <em>iface</em> is not an interface null
-	 *         is returned
+	 * @param iface
+	 *            The interface classes have to implement to be listed
+	 * @param loader
+	 *            The class loader the implementing classes got loaded with
+	 * @return A {@link List} of implementing classes for the provided
+	 *         interface. If <em>iface</em> is not an interface null is returned
 	 */
 	public List<Class<?>> findImplementingClasses(Class<?> iface, ClassLoader loader)
 	{
@@ -108,15 +123,17 @@ public class ClassFinder
 	}
 	
 	/**
-	 * <p>Looks inside all jar files added previously to the instance' 
-	 * class-path for implementing classes of the provided interface.</p>
+	 * <p>
+	 * Looks inside all jar files added previously to the instance' class-path
+	 * for implementing classes of the provided interface.
+	 * </p>
 	 * 
-	 * @param iface The interface classes have to implement
-	 * @param loader The class loader the implementing classes got loaded
-	 *               with
-	 * @return A {@link List} of implementing classes for the provided
-	 *         interface inside jar files of the <em>ClassFinder</em>s
-	 *         class path
+	 * @param iface
+	 *            The interface classes have to implement
+	 * @param loader
+	 *            The class loader the implementing classes got loaded with
+	 * @return A {@link List} of implementing classes for the provided interface
+	 *         inside jar files of the <em>ClassFinder</em>s class path
 	 */
 	public List<Class<?>> findImplementingClassesInJarFiles(Class<?> iface, ClassLoader loader)
 	{
@@ -149,15 +166,17 @@ public class ClassFinder
 	}
 	
 	/**
-	 * <p>Looks inside all directories added previously to the instance' 
-	 * class-path for implementing classes of the provided interface.</p>
+	 * <p>
+	 * Looks inside all directories added previously to the instance' class-path
+	 * for implementing classes of the provided interface.
+	 * </p>
 	 * 
-	 * @param iface The interface classes have to implement
-	 * @param loader The class loader the implementing classes got loaded
-	 *               with
-	 * @return A {@link List} of implementing classes for the provided
-	 *         interface inside jar files of the <em>ClassFinder</em>s
-	 *         class path
+	 * @param iface
+	 *            The interface classes have to implement
+	 * @param loader
+	 *            The class loader the implementing classes got loaded with
+	 * @return A {@link List} of implementing classes for the provided interface
+	 *         inside jar files of the <em>ClassFinder</em>s class path
 	 */
     public List<Class<?>> findImplementingClassesInDirectories(Class<?> iface, ClassLoader loader)
     {    	
@@ -199,12 +218,15 @@ public class ClassFinder
         return implementingClasses;
     }
     
-    /**
-     * <p>Converts a path to a class file to a fully-qualified class name.</p>
-     * 
-     * @param path The relative path of the class
-     * @return The fully-qualified class name
-     */
+	/**
+	 * <p>
+	 * Converts a path to a class file to a fully-qualified class name.
+	 * </p>
+	 * 
+	 * @param path
+	 *            The relative path of the class
+	 * @return The fully-qualified class name
+	 */
     private String convertPath(String path)
     {
         String classFile = path.replace(".class", "");
@@ -216,17 +238,23 @@ public class ClassFinder
         return classFile;
     }
     
-    /**
-     * <p>Finds class files in a specified directory and adds them to a 
-     * {@link List} of found classes.</p>
-     * <p>If <em>includeSubDir</em> is set to true this method will traverse
-     * through sub directories.</p>
-     * 
-     * @param dir The directory to look for .class files
-     * @param includeSubDir true if sub directories should be traversed in order
-     *                      to find class files
-     * @return A {@link List} of found class files within the directory
-     */
+	/**
+	 * <p>
+	 * Finds class files in a specified directory and adds them to a
+	 * {@link List} of found classes.
+	 * </p>
+	 * <p>
+	 * If <em>includeSubDir</em> is set to true this method will traverse
+	 * through sub directories.
+	 * </p>
+	 * 
+	 * @param dir
+	 *            The directory to look for .class files
+	 * @param includeSubDir
+	 *            true if sub directories should be traversed in order to find
+	 *            class files
+	 * @return A {@link List} of found class files within the directory
+	 */
     public List<File> findClassFilesInDirectory(File dir, boolean includeSubDir)
     {
         List<File> classFiles = new ArrayList<>();
@@ -235,17 +263,24 @@ public class ClassFinder
         return classFiles;
     }
     
-    /**
-     * <p>Traverses the current directory in order to add found .class files to 
-     * the provided {@link List} of already found class files.</p>
-     * <p>If <em>includeSubDir</em> is set to true this method will traverse
-     * through all sub directories and add .class files found to the list.</p>
-     * 
-     * @param directory The directory to add .class files to <em>classFiles</em>
-     * @param classFiles A {@link List} of found .class files within the directory
-     * @param includeSubDir true if sub directories should be traversed in order
-     *                      to find class files
-     */
+	/**
+	 * <p>
+	 * Traverses the current directory in order to add found .class files to the
+	 * provided {@link List} of already found class files.
+	 * </p>
+	 * <p>
+	 * If <em>includeSubDir</em> is set to true this method will traverse
+	 * through all sub directories and add .class files found to the list.
+	 * </p>
+	 * 
+	 * @param directory
+	 *            The directory to add .class files to <em>classFiles</em>
+	 * @param classFiles
+	 *            A {@link List} of found .class files within the directory
+	 * @param includeSubDir
+	 *            true if sub directories should be traversed in order to find
+	 *            class files
+	 */
     private void traverseDirectory(File directory, List<File> classFiles, boolean includeSubDir)
     {
         for (File file : directory.listFiles())
@@ -258,11 +293,14 @@ public class ClassFinder
     }
     
 	/**
-	 * Scans a JAR file for .class-files and returns a {@link List} containing the 
-	 * full name of found classes (in the following form: packageName.className)
+	 * Scans a JAR file for .class-files and returns a {@link List} containing
+	 * the full name of found classes (in the following form:
+	 * packageName.className)
 	 * 
-	 * @param file JAR-file which should be searched for .class-files
-	 * @return Returns all found class-files with their full-name as a List of Strings
+	 * @param file
+	 *            JAR-file which should be searched for .class-files
+	 * @return Returns all found class-files with their full-name as a List of
+	 *         Strings
 	 */
 	public static List<String> scanJarFileForClasses(File file)
 	{

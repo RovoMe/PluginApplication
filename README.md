@@ -12,11 +12,15 @@ Running the framework
 2.   Install PluginInterface and PluginCore either via `mvn install` directly or use mvn install on the parent 
      project PluginFramework which will install the modules automatically
 	 
-3.  a. Install PluginClient using `mvn install` and execute the Main class which should load the dependent jar 
-       files using maven.
+3.  a. run PluginClient using `mvn test` which execute the Main class and avoid spaming of log-messages.
+	   
+	   On using Eclipse define a new run configuration for the PluginClient project with goal set to `test`.
+	   Afterwards executing the client is just a simple click.
 	 
-    b. If Eclipse isn't used add `PluginInterface*.jar` and `PluginCore*.jar` to the classpath of `PluginClient` 
-       (either using your prefered IDE or `java -classpath ...`) and execute Main class.
+    b. If Eclipse or Maven aren't used add `PluginInterface*.jar` and `PluginCore*.jar` to the classpath of 
+	   `PluginClient` (either using your prefered IDE or `java -classpath ...`) and execute Main class. 
+	   To avoid spaming of log-messages within the console please add 
+	   `java.util.logging.config.file=${basedir}/src/test/resources/logging.properties` to your system properties.
 	 
 4.   Create plugin samples using `mvn package` for the desired plugin each and add the resulting jar file to 
      PluginClient's plugin subdirectory to automatically load the added jar files on startup or on drag&drop

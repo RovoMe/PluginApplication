@@ -12,6 +12,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import at.rovo.core.ClassFinder;
 import at.rovo.plugin.InjectionException;
 import at.rovo.annotations.Component;
@@ -20,29 +22,37 @@ import at.rovo.annotations.Inject;
 import at.rovo.annotations.ScopeType;
 
 /**
- * <p>This class is an implementation of {@link IInjectionController}. 
- * Its task is to inject instances of classes into {@link Inject}-annotated
- * fields.</p>
- * <p>Therefore every class is scanned for a {@link Component} annotation and
- * a {@link ComponentId}-annotation if it was declared as component. If the
- * first annotation could not be found and {@link #initialize(Object)} was 
- * called, an {@link InjectionException} will be raised as this method only
- * accepts {@link Component}-annotated objects.</p>
- * <p>If a {@link Component}-annotated object does not have a {@link ComponentId}
- * -annotation an {@link InjectionException} will be thrown as every {@link Component}
- * needs a unique {@link ComponentId}. This implementation sets a unique identifier
- * for every instantiated object. First it tries to set the unique identifier via
- * a set-method, which maps the fields name to get plug the field name starting with
- * an upper letter. This is due to inheritance to allow parent-classes to receive
- * their unique identifier. If there is no such method, this implementation injects
- * the identifier directly into the field.</p>
- * <p>If this {@link Component} is valid and contains {@link Inject}-annotations
+ * <p>
+ * This class is an implementation of {@link IInjectionController}. Its task is
+ * to inject instances of classes into {@link Inject}-annotated fields.
+ * </p>
+ * <p>
+ * Therefore every class is scanned for a {@link Component} annotation and a
+ * {@link ComponentId}-annotation if it was declared as component. If the first
+ * annotation could not be found and {@link #initialize(Object)} was called, an
+ * {@link InjectionException} will be raised as this method only accepts
+ * {@link Component}-annotated objects.
+ * </p>
+ * <p>
+ * If a {@link Component}-annotated object does not have a {@link ComponentId}
+ * -annotation an {@link InjectionException} will be thrown as every
+ * {@link Component} needs a unique {@link ComponentId}. This implementation
+ * sets a unique identifier for every instantiated object. First it tries to set
+ * the unique identifier via a set-method, which maps the fields name to get
+ * plug the field name starting with an upper letter. This is due to inheritance
+ * to allow parent-classes to receive their unique identifier. If there is no
+ * such method, this implementation injects the identifier directly into the
+ * field.
+ * </p>
+ * <p>
+ * If this {@link Component} is valid and contains {@link Inject}-annotations
  * InjectionControllerImpl tries to load the needed classes and to inject valid
  * instances into the annotated fields. Currently only injections into fields
- * are possible. In case an interface is marked as injection-target the application-
- * class path is looked for some classes that implement this interface. If only
- * one implementing class could be found, this class gets instantiated and injected
- * into the field.</p>
+ * are possible. In case an interface is marked as injection-target the
+ * application- class path is looked for some classes that implement this
+ * interface. If only one implementing class could be found, this class gets
+ * instantiated and injected into the field.
+ * </p>
  * 
  * @see Component
  * @see ComponentId
@@ -53,6 +63,8 @@ import at.rovo.annotations.ScopeType;
  */
 public class InjectionControllerImpl implements IInjectionController
 {
+	/** The logger of this class **/
+	private static Logger logger = Logger.getLogger(InjectionControllerImpl.class.getName());
     private static InjectionControllerImpl me;
     private Map<String,Object> singletonRef = 
             Collections.synchronizedMap(new HashMap<String, Object>());
@@ -81,24 +93,29 @@ public class InjectionControllerImpl implements IInjectionController
         // check for multiple initialization calls for the same objects
         if (!this.initializations.contains(obj))
         {
-        	System.out.println("[InjectionControllerImpl.initialize] initializing "+obj+" loaded with class loader: "+obj.getClass().getClassLoader());
+        	logger.log(Level.INFO, "{0} loaded with class loader: {1}", 
+        			new Object[] {obj, obj.getClass().getClassLoader()});
         	this.initializations.add(obj);
         	obj = this.initializeObject(obj, true);
         }
         return obj;
     }
     
-    /**
-     * <p>This method checks an object for inconsistencies like missing or multiple
-     * {@link ComponentId}-fields and propagates injection of needed instances
-     * to {@link #injectFields(Object, Field, List)}</p>
-     * 
-     * @param obj The @Component annotated object to inject elements into @Inject 
-     *            annotated fields
-     * @param isOriginCall Defines if the call is a origin invocation or an invocation 
-     *                     of a ancestor object; true means an origin invocation takes
-     *                     place, false if an ancestor is injected
-     */
+	/**
+	 * <p>
+	 * This method checks an object for inconsistencies like missing or multiple
+	 * {@link ComponentId}-fields and propagates injection of needed instances
+	 * to {@link #injectFields(Object, Field, List)}
+	 * </p>
+	 * 
+	 * @param obj
+	 *            The @Component annotated object to inject elements into @Inject
+	 *            annotated fields
+	 * @param isOriginCall
+	 *            Defines if the call is a origin invocation or an invocation of
+	 *            a ancestor object; true means an origin invocation takes
+	 *            place, false if an ancestor is injected
+	 */
     private Object initializeObject(Object obj, boolean isOriginCall)
     {
         // every Object to initialize has to be annotated with "@Component"
@@ -121,6 +138,8 @@ public class InjectionControllerImpl implements IInjectionController
         }
         catch (NoClassDefFoundError e)
         {
+        	logger.log(Level.SEVERE, "Could not find missing dependency plugin for {0}", 
+        			new Object[] { e.getLocalizedMessage().substring(1).replace("/",  ".")});
         	throw new InjectionException("Missing dependency plugin could not be found! Plugin contains unresolved dependency to: "+e.getLocalizedMessage().substring(1).replace("/", "."));
         }
         // all declared fields loaded
@@ -129,7 +148,10 @@ public class InjectionControllerImpl implements IInjectionController
             if (f.isAnnotationPresent(ComponentId.class))
             {
                 if (!f.getType().equals(Long.class))
+                {
+                	logger.log(Level.WARNING, "Invalid ComponentId type found");
                     throw new InjectionException("Invalid ComponentId-Type found. ComponentId needs to be of type Long");
+                }
                 foundId++;
                 componentId = f;
             }
@@ -141,9 +163,15 @@ public class InjectionControllerImpl implements IInjectionController
             }
         }
         if (foundId == 0)
+        {
+        	logger.log(Level.WARNING, "No field annotated with @ComponentId found");
             throw new InjectionException("No field annotated with @ComponentId found.");
+        }
         else if (foundId > 1)
+        {
+        	logger.log(Level.WARNING, "More than one @ComponentId-fields found");
             throw new InjectionException("More than one @ComponentId-fields found.");
+        }
         
         // so we do have a component-class
         // check if we have a Singleton or Prototype class
@@ -161,7 +189,8 @@ public class InjectionControllerImpl implements IInjectionController
             }
             else
             {
-//            	System.out.println("[InjectionControllerImpl.initializeObject] adding "+obj+" to singleton-list");
+            	logger.log(Level.INFO, "adding {0} to singleton-list", 
+            			new Object[] {obj});
                 this.singletonRef.put(obj.getClass().getName(), obj);
                 this.injectFields(obj, componentId, injectFields, required);
             }
@@ -172,16 +201,19 @@ public class InjectionControllerImpl implements IInjectionController
         return obj;
     }
           
-    /**
-     * Returns all fields of super classes which have been annotated with
-     * {@Inject}.
-     * @param obj Instance, fields of super classes should be returned for
-     * @param required Defines if exceptions should be thrown in case of errors.
-     *                 true specifies that exceptions should be thrown, false prevents
-     *                 exceptions from being propagated
-     * @return {@link List} of {@link Field}s which have been annotated with
-     *         {@link Inject} in super classes.
-     */
+	/**
+	 * Returns all fields of super classes which have been annotated with
+	 * {@Inject}.
+	 * 
+	 * @param obj
+	 *            Instance, fields of super classes should be returned for
+	 * @param required
+	 *            Defines if exceptions should be thrown in case of errors. true
+	 *            specifies that exceptions should be thrown, false prevents
+	 *            exceptions from being propagated
+	 * @return {@link List} of {@link Field}s which have been annotated with
+	 *         {@link Inject} in super classes.
+	 */
     private List<Field> getSuperClassFields(Object obj, boolean required)
     {
         List<Field> superClassFields = new ArrayList<Field>();
@@ -190,42 +222,59 @@ public class InjectionControllerImpl implements IInjectionController
         {
             if (supClass!= null && supClass.isAnnotationPresent(Component.class))
             {
-//              System.out.println("[InjectionControllerImpl.getSuperClassFields] Found Super-Class of "+clazz.getName()+" with Component-annotation: "+supClass.getCanonicalName());
+            	logger.log(Level.INFO, "Found Super-Class of {0} with Component-annotation: {1}", 
+            			new Object[] {clazz.getName(), supClass.getCanonicalName()});
                 int found = 0;
                 for (Field f : supClass.getDeclaredFields())
                 {
                     if (f.isAnnotationPresent(ComponentId.class))
                     {
                         if (!f.getType().equals(Long.class) && required)
+                        {
+                        	logger.log(Level.WARNING, "Invalid ComponentId-Type found. ComponentId needs to be of type Long");
                             throw new InjectionException("Invalid ComponentId-Type found. ComponentId needs to be of type Long");
+                        }
                         found++;
                     }
                     if (f.isAnnotationPresent(Inject.class))
                         superClassFields.add(f);
                 }
                 if (found == 0 && required)
+                {
+                	logger.log(Level.WARNING, "No field annotated with @ComponentId found.");
                     throw new InjectionException("No field annotated with @ComponentId found.");
+                }
                 else if (found > 1 && required)
+                {
+                	logger.log(Level.WARNING, "More than one @ComponentId-fields found.");
                     throw new InjectionException("More than one @ComponentId-fields found.");
+                }
             }
         }
         return superClassFields;
     }
     
-    /**
-     * <p>Injects instances into {@link Field}s which have been annotated with
-     * {@link Inject}. This method sets the {@link ComponentId} for a 
-     * {@link Component}-annotated class too.</p>
-     * <p>If the field to inject is an interface an implementing class is being
-     * looked for via the {@link ClassFinder#findImplementingClasses}-method. If
-     * none or more than one could be found an InjectionException will be thrown
-     * if the injection is required </p>
-     *
-     * @param obj Object whose field(s) need to be injected.
-     * @param componentId {@link ComponentId}-annotated field of this object.
-     * @param injectFields {@link List} of {@link Field}s to inject instances to.
-     * @see ClassFinder#findImplementingClasses(Class, ClassLoader)
-     */
+	/**
+	 * <p>
+	 * Injects instances into {@link Field}s which have been annotated with
+	 * {@link Inject}. This method sets the {@link ComponentId} for a
+	 * {@link Component}-annotated class too.
+	 * </p>
+	 * <p>
+	 * If the field to inject is an interface an implementing class is being
+	 * looked for via the {@link ClassFinder#findImplementingClasses}-method. If
+	 * none or more than one could be found an InjectionException will be thrown
+	 * if the injection is required
+	 * </p>
+	 * 
+	 * @param obj
+	 *            Object whose field(s) need to be injected.
+	 * @param componentId
+	 *            {@link ComponentId}-annotated field of this object.
+	 * @param injectFields
+	 *            {@link List} of {@link Field}s to inject instances to.
+	 * @see ClassFinder#findImplementingClasses(Class, ClassLoader)
+	 */
     private void injectFields(Object obj, Field componentId, List<Field> injectFields, boolean required)
     {
         try
@@ -248,7 +297,8 @@ public class InjectionControllerImpl implements IInjectionController
                     toInject = inject.specificType();
                 else
                 	toInject = f.getType();
-//                System.out.println("[InjectionControllerImpl.injectFields] Injecting: "+toInject.getCanonicalName()+" into "+f.getName());
+                logger.log(Level.INFO, "Injecting: {0} into {1}", 
+                		new Object[] { toInject.getCanonicalName(), f.getName()});
                 
                 // Set the specified type (or the fields type) as to be loaded
                 Class<?> toLoad = toInject;
@@ -370,7 +420,8 @@ public class InjectionControllerImpl implements IInjectionController
 				{
 					throw new InjectionException(e);
 				}      
-//				System.out.println("[InjectionControllerImpl.injectFields] "+obj.toString()+" has now id "+id);
+				logger.log(Level.INFO, "{0} has now id {1}", 
+						new Object[] { obj.toString(), id});
             }
         }
         catch (IllegalArgumentException ex)
@@ -383,17 +434,23 @@ public class InjectionControllerImpl implements IInjectionController
         }
     }
     
-    /**
-     * <p>Instantiates a new instance of {@link Class} provided by the 
-     * classToLoad argument. Therefore the default-constructor will be
-     * used.</p>
-     * <p>If this class could not get instantiated correctly a 
-     * {@link InjectionException} will be thrown unless required was set
-     * to false.</p>
-     * @param classToLoad {@link Class} which needs to be loaded
-     * @param required If set to true, all exceptions will be forwarded. 
-     * @return An initialized object of the provided {@link Class}
-     */
+	/**
+	 * <p>
+	 * Instantiates a new instance of {@link Class} provided by the classToLoad
+	 * argument. Therefore the default-constructor will be used.
+	 * </p>
+	 * <p>
+	 * If this class could not get instantiated correctly a
+	 * {@link InjectionException} will be thrown unless required was set to
+	 * false.
+	 * </p>
+	 * 
+	 * @param classToLoad
+	 *            {@link Class} which needs to be loaded
+	 * @param required
+	 *            If set to true, all exceptions will be forwarded.
+	 * @return An initialized object of the provided {@link Class}
+	 */
     @SuppressWarnings("unchecked")
 	private <T> T loadClass(Class<T> classToLoad, boolean required)
     {
@@ -405,51 +462,42 @@ public class InjectionControllerImpl implements IInjectionController
         	}
         	else
         	{
-			Constructor<T>[] cons = (Constructor<T>[])classToLoad.getDeclaredConstructors(); 
-        	// Change the accessible property for all constructors
-            AccessibleObject.setAccessible(cons, true); 
-            // iterate through all defined constructors
-            Constructor<T> defaultConstructor = null;
-            for (int i = 0; i < cons.length; i++) 
-            {
-            	if (cons[i].getParameterTypes().length == 0) 
-            	{
-            		defaultConstructor = cons[i];
-            		break;
-            	}
-            }
-            
-            Object[] o = null;
-            T injObj = defaultConstructor.newInstance(o);
-            if (!classToLoad.isInstance(injObj))
-                throw new InjectionException("Could not instantiate "+
-                        classToLoad.getName()+"!");
-
-//            System.out.println("[InjectionControllerImpl.loadClass] Initialized object: "+injObj
-//            	+" loader: "+injObj.getClass().getClassLoader());
-            return injObj;
+				Constructor<T>[] cons = (Constructor<T>[])classToLoad.getDeclaredConstructors(); 
+	        	// Change the accessible property for all constructors
+	            AccessibleObject.setAccessible(cons, true); 
+	            // iterate through all defined constructors
+	            Constructor<T> defaultConstructor = null;
+	            for (int i = 0; i < cons.length; i++) 
+	            {
+	            	if (cons[i].getParameterTypes().length == 0) 
+	            	{
+	            		defaultConstructor = cons[i];
+	            		break;
+	            	}
+	            }
+	            
+	            Object[] o = null;
+	            T injObj = defaultConstructor.newInstance(o);
+	            if (!classToLoad.isInstance(injObj))
+	            {
+	            	logger.log(Level.WARNING, "Could not instantiate {0}", 
+	            			new Object[] {classToLoad.getName()});
+	                throw new InjectionException("Could not instantiate "+
+	                        classToLoad.getName()+"!");
+	            }
+	
+	            logger.log(Level.INFO, "Initialized object: {0} loader: {1}", 
+	            		new Object[] {injObj, injObj.getClass().getClassLoader()});
+	            return injObj;
         	}
-        }
-        catch (IllegalAccessException ex)
-        {
-            if (required)
-                throw new InjectionException(ex);
-        }        
-        catch (InstantiationException e) 
+        }     
+        catch (IllegalAccessException | InstantiationException | IllegalArgumentException | InvocationTargetException e) 
         {
             // if field is required and there are any problems injecting
             // the field throw an exception
+        	logger.log(Level.WARNING, "Couldn't instantiate class - Reason: {0}", 
+        			new Object[] {e.getLocalizedMessage()});
             if (required)
-                throw new InjectionException(e);
-		}
-		catch (IllegalArgumentException e)
-		{
-			if (required)
-                throw new InjectionException(e);
-		}
-		catch (InvocationTargetException e)
-		{
-			if (required)
                 throw new InjectionException(e);
 		}
         return null;
@@ -462,5 +510,4 @@ public class InjectionControllerImpl implements IInjectionController
     	T ret = (T)this.singletonRef.get(clazz.getName());
         return ret;
     }
-    
 }

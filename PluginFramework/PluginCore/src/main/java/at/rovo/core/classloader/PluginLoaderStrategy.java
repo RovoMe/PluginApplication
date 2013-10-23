@@ -11,7 +11,11 @@ import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
 /**
- * <p></p>
+ * <p>
+ * Implements a strategy for loading plug-ins and all of their required classes
+ * either as class files located directly in the plugin directory or contained 
+ * within a jar file.
+ * </p>
  * 
  * @author Roman Vottner
  * @version 0.1
@@ -22,7 +26,9 @@ public class PluginLoaderStrategy implements IClassLoaderStrategy
 	private URL urlClassPath = null;
 
 	/**
-	 * <p>Creates a new instance of this class.</p>
+	 * <p>
+	 * Creates a new instance of this class.
+	 * </p>
 	 */
 	public PluginLoaderStrategy()
 	{
@@ -30,10 +36,13 @@ public class PluginLoaderStrategy implements IClassLoaderStrategy
 	}
 	
 	/**
-	 * <p>Creates a new instance of this class and sets the {@link URL}
-	 * the classes to load can be found.</p>
+	 * <p>
+	 * Creates a new instance of this class and sets the {@link URL} the classes
+	 * to load can be found.
+	 * </p>
 	 * 
-	 * @param jarFile The file or location the .class files can be found
+	 * @param jarFile
+	 *            The file or location the .class files can be found
 	 */
 	public PluginLoaderStrategy(URL jarFile)
 	{
@@ -41,9 +50,12 @@ public class PluginLoaderStrategy implements IClassLoaderStrategy
 	}
 	
 	/**
-	 * <p>Sets the file or location the .class files can be found in.</p>
+	 * <p>
+	 * Sets the file or location the .class files can be found in.
+	 * </p>
 	 * 
-	 * @param newClassPath The file or location the .class files can be found.
+	 * @param newClassPath
+	 *            The file or location the .class files can be found.
 	 */
 	public void setClassPath(URL newClassPath)
 	{
@@ -51,8 +63,10 @@ public class PluginLoaderStrategy implements IClassLoaderStrategy
 	}
 	
 	/**
-	 * <p>Returns the {@link URL} of the file or directory that was specified 
-	 * to contains the .class files.</p>
+	 * <p>
+	 * Returns the {@link URL} of the file or directory that was specified to
+	 * contains the .class files.
+	 * </p>
 	 * 
 	 * @return The specified file or directory the .class files should be found.
 	 */
@@ -69,12 +83,14 @@ public class PluginLoaderStrategy implements IClassLoaderStrategy
 		
 		byte[] classBytes = null;
 
-		// A jar-file doesn't get loaded all by itself, URLClassLoader does a pretty job
-		// therefore. First, we have to locate our jar-file by using the urlClassPath-field
-		// provided by our constructor or via the setClassPath()-method. Second, after having
-		// a valid reference to our jar-file we have to find our class inside the jar-archive.
-		// All entries inside the archive are of type ZipEntry, together with the getInputStream
-		// of JarFile we are now able to get the needed bytes out of the jar-archive
+		// A jar-file doesn't get loaded all by itself, URLClassLoader does a
+		// pretty job therefore. First, we have to locate our jar-file by using 
+		// the urlClassPath-field provided by our constructor or via the 
+		// setClassPath()-method. Second, after having a valid reference to our 
+		// jar-file we have to find our class inside the jar-archive.
+		// All entries inside the archive are of type ZipEntry, together with
+		// the getInputStream of JarFile we are now able to get the needed bytes
+		// out of the jar-archive
 		if (this.urlClassPath != null)
 		{
 			// Windows and Linux differ drastically in how files have to be
@@ -85,7 +101,7 @@ public class PluginLoaderStrategy implements IClassLoaderStrategy
 				// get rid of the leading 'file:/' part, afterward 
 				// replace / with \ and %20 with a blank space
 				fileName = fileName.substring(6).replace("/", "\\").replace("%20", " ").replace("%2520", " ");
-			else if (osName.contains("Linux"))
+			else if (osName.contains("Linux") || osName.contains("Mac"))
 				// Get rid of the leading 'file:' part as File-class seams to have 
 				// some problems with it
 				fileName = fileName.substring(5);

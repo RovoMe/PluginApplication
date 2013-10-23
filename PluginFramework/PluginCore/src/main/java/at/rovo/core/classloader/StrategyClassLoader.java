@@ -4,22 +4,27 @@ import java.net.URL;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import at.rovo.plugin.PluginException;
 
 /**
- * <p>This {@link ClassLoader} implementation may handle different strategies
- * to load specific classes. This implementation is based on the strategy pattern
+ * <p>
+ * This {@link ClassLoader} implementation may handle different strategies to
+ * load specific classes. This implementation is based on the strategy pattern
  * used by Ted Neward's implementation found in his book <em>'Java Server-Based 
- * Programming' (ISBN1-884777-71-6)</em>.</p>
- * <p>This implementation differs from Ted Neward's implementation by first looking
- * if the parental class loader has already loaded the required class, which will
- * then invoke {@link #defineClass(String, byte[], int, int)} and return a valid
- * <code>Class</code> object. If the parental class loaders are unable to find
- * the required class the current instance propagates the call to its strategies.
- * The first strategy that returns a byte[] array unequal to null will load
- * the class via the {@link #defineClass(String, byte[], int, int)} method and 
- * return it to the caller.</p>
+ * Programming' (ISBN1-884777-71-6)</em>.
+ * </p>
+ * <p>
+ * This implementation differs from Ted Neward's implementation by first looking
+ * if the parental class loader has already loaded the required class, which
+ * will then invoke {@link #defineClass(String, byte[], int, int)} and return a
+ * valid <code>Class</code> object. If the parental class loaders are unable to
+ * find the required class the current instance propagates the call to its
+ * strategies. The first strategy that returns a byte[] array unequal to null
+ * will load the class via the {@link #defineClass(String, byte[], int, int)}
+ * method and return it to the caller.
+ * </p>
  * 
  * @param <T>
  * @author Roman Vottner
@@ -27,14 +32,17 @@ import at.rovo.plugin.PluginException;
  */
 public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderStrategy
 {
+	/** The logger of this class **/
+	private static Logger logger = Logger.getLogger(StrategyClassLoader.class.getName());
 	/** The registered strategies for this class loader **/
 	private Set<IClassLoaderStrategy> strategies = null;
 	
 	/**
-	 * <p>Creates a new instance of this class loader which is a child of the 
-	 * class loader that loaded this class loder's class file. This constructor
-	 * will add an empty {@link Set} for storing strategies to use for class
-	 * loading.</p>
+	 * <p>
+	 * Creates a new instance of this class loader which is a child of the class
+	 * loader that loaded this class loder's class file. This constructor will
+	 * add an empty {@link Set} for storing strategies to use for class loading.
+	 * </p>
 	 */
 	public StrategyClassLoader()
 	{
@@ -42,11 +50,14 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	}
 	
 	/**
-	 * <p>Creates a new instance of this class loader which is a child of the 
-	 * class loader that loaded this class loder's class file. This constructor
-	 * set the specified strategies as strategies to use for class loading.</p>
+	 * <p>
+	 * Creates a new instance of this class loader which is a child of the class
+	 * loader that loaded this class loder's class file. This constructor set
+	 * the specified strategies as strategies to use for class loading.
+	 * </p>
 	 * 
-	 * @param strategies The strategies to use for class loading 
+	 * @param strategies
+	 *            The strategies to use for class loading
 	 */
 	public StrategyClassLoader(Set<IClassLoaderStrategy> strategies)
 	{
@@ -54,11 +65,15 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	}
 	
 	/**
-	 * <p>Creates a new instance of this class loader which is a child of the
-	 * defined <em>loader</em>. This constructor will add an empty {@link Set} 
-	 * for storing strategies to use for class loading.</p></p>
+	 * <p>
+	 * Creates a new instance of this class loader which is a child of the
+	 * defined <em>loader</em>. This constructor will add an empty {@link Set}
+	 * for storing strategies to use for class loading.
+	 * </p>
+	 * </p>
 	 * 
-	 * @param parent The {@link ClassLoader} to use as a parent class loader
+	 * @param parent
+	 *            The {@link ClassLoader} to use as a parent class loader
 	 */
 	public StrategyClassLoader(ClassLoader parent)
 	{
@@ -66,12 +81,16 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	}
 	
 	/**
-	 * <p>Creates a new instance of this class loader which is a child of the
-	 * defined <em>loader</em>. This constructor set the specified strategies 
-	 * as strategies to use for class loading.</p>
+	 * <p>
+	 * Creates a new instance of this class loader which is a child of the
+	 * defined <em>loader</em>. This constructor set the specified strategies as
+	 * strategies to use for class loading.
+	 * </p>
 	 * 
-	 * @param parent The {@link ClassLoader} to use as a parent class loader
-	 * @param strategies The strategies to use for class loading 
+	 * @param parent
+	 *            The {@link ClassLoader} to use as a parent class loader
+	 * @param strategies
+	 *            The strategies to use for class loading
 	 */
 	public StrategyClassLoader(ClassLoader parent, Set<IClassLoaderStrategy> strategies )
 	{
@@ -80,9 +99,12 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	}
 	
 	/**
-	 * <p>Adds a strategy to the set of used strategies for loading classes.</p>
+	 * <p>
+	 * Adds a strategy to the set of used strategies for loading classes.
+	 * </p>
 	 * 
-	 * @param strategy The strategy to add to the set of strategies
+	 * @param strategy
+	 *            The strategy to add to the set of strategies
 	 */
 	public void addStrategy(IClassLoaderStrategy strategy)
 	{
@@ -90,7 +112,9 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	}
 	
 	/**
-	 * <p>Returns all registered strategies for this class loader as a {@link Set}.</p>
+	 * <p>
+	 * Returns all registered strategies for this class loader as a {@link Set}.
+	 * </p>
 	 * 
 	 * @return A {@link Set} of all registered strategies for this class loader
 	 */
@@ -105,22 +129,12 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	{
 		try 
 		{
-			Class<T> clazz = null;
-			// first check if the class was already loaded
-			// by a parental class loader
-			clazz = (Class<T>) super.loadClass(name);
-			if (clazz == null)
-			{
-				// none of the parents was able to load the class
-				// so we have to load it ourself's
-				clazz = (Class<T>)this.findClass(name);
-			}
-			return clazz;
+			return (Class<T>) super.loadClass(name);
 		} 
 		catch (ClassNotFoundException e) 
 		{
+			logger.log(Level.SEVERE, "Could not find class: {0}", new Object[] {name});
 			throw new PluginException("StrategyClassLoader.loadClass("+name+"): "+e.getLocalizedMessage());
-//			return null;
 		}
 	}
 	
@@ -131,6 +145,7 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 		byte[] classBytes = this.findClassBytes(className);
 		if (classBytes != null)
 		{
+			logger.log(Level.FINE, "found bytes for class {0} - defining class", new Object[] {className});
 			// at least one strategy was able to find bytes for this class
 			// so create the class based on the found bytes
 			return defineClass(className, classBytes, 0, classBytes.length);

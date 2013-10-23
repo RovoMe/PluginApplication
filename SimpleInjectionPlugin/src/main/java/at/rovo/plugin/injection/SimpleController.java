@@ -12,6 +12,8 @@
 
 package at.rovo.plugin.injection;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import at.rovo.annotations.Component;
 import at.rovo.annotations.ComponentId;
 import at.rovo.annotations.Inject;
@@ -21,6 +23,9 @@ import at.rovo.plugin.IPlugin;
 @Component(scope=ScopeType.PROTOTYPE)
 public class SimpleController implements IPlugin
 {
+	/** The logger of this class **/
+	private static Logger logger = Logger.getLogger(SimpleController.class.getName());
+	
     @ComponentId
     private Long id;
     
@@ -45,7 +50,8 @@ public class SimpleController implements IPlugin
 	@Override
 	public void execute() 
 	{
-		System.out.println(this.getClass().getCanonicalName()+" has ID: "+this.id+"; it was loaded with class loader: "+this.getClass().getClassLoader());
+		logger.log(Level.INFO, "{0} has ID: {1}; it was loaded with class loader: {2}", 
+				new Object[] {this.getClass().getCanonicalName(), this.id, this.getClass().getClassLoader()});
         this.callSi();
 	}
 }

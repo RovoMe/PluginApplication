@@ -5,6 +5,8 @@ import java.net.URL;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import at.rovo.core.classloader.IClassLoaderStrategy;
 import at.rovo.core.classloader.InjectionLoaderStrategyDecorator;
 import at.rovo.core.classloader.PluginLoaderStrategy;
@@ -13,20 +15,31 @@ import at.rovo.plugin.IPlugin;
 import at.rovo.plugin.PluginException;
 
 /**
- * <p><code>InjectionPluginManager</code> is a {@link PluginManager} that enables
- * injection of {@link at.rovo.core.injection.annotations.Inject} annotated fields into classes 
- * annotated with {@link at.rovo.core.injection.annotations.Component}. The injection target 
- * has to be a {@link at.rovo.core.injection.annotations.Component} annotated class too.</p>
- * <p>It is further able to handle singleton marked components as singletons
- * which ensures that a singleton component is only instantiated once while
- * every other component is instantiated on every injection.</p>
- * <p>Note that every class annotated with {@link at.rovo.core.injection.annotations.Component} 
- * needs a private field of type long which is annotated with 
- * {@link at.rovo.core.injection.annotations.ComponentId}</p>
- * <p>To provide the injection mechanism {@link InjectionLoaderStrategyDecorator} compiles
- * a call to a {@link at.rovo.core.injection.IInjectionController} into the 
- * component, which handles the injection of {@link at.rovo.core.injection.annotations.Inject} 
- * annotated fields.</p>
+ * <p>
+ * <code>InjectionPluginManager</code> is a {@link PluginManager} that enables
+ * injection of {@link at.rovo.core.injection.annotations.Inject} annotated
+ * fields into classes annotated with
+ * {@link at.rovo.core.injection.annotations.Component}. The injection target
+ * has to be a {@link at.rovo.core.injection.annotations.Component} annotated
+ * class too.
+ * </p>
+ * <p>
+ * It is further able to handle singleton marked components as singletons which
+ * ensures that a singleton component is only instantiated once while every
+ * other component is instantiated on every injection.
+ * </p>
+ * <p>
+ * Note that every class annotated with
+ * {@link at.rovo.core.injection.annotations.Component} needs a private field of
+ * type long which is annotated with
+ * {@link at.rovo.core.injection.annotations.ComponentId}
+ * </p>
+ * <p>
+ * To provide the injection mechanism {@link InjectionLoaderStrategyDecorator}
+ * compiles a call to a {@link at.rovo.core.injection.IInjectionController} into
+ * the component, which handles the injection of
+ * {@link at.rovo.core.injection.annotations.Inject} annotated fields.
+ * </p>
  * 
  * @author Roman Vottner
  * @version 0.1
@@ -34,6 +47,8 @@ import at.rovo.plugin.PluginException;
  */
 public class InjectionPluginManager extends PluginManager
 {
+	/** The logger of this class **/
+	private static Logger logger = Logger.getLogger(InjectionPluginManager.class.getName());
 	/** The reference to the one and only instance of the InjectionPluginManager **/
 	private static InjectionPluginManager instance = null;
 	/** The class loader which holds the singleton components **/
@@ -61,8 +76,10 @@ public class InjectionPluginManager extends PluginManager
 	}
 	
 	/**
-	 * <p>Creates a new instance of the InjectionPluginManager if non was created 
-	 * before or returns the current instance for this plug-in manager.</p>
+	 * <p>
+	 * Creates a new instance of the InjectionPluginManager if non was created
+	 * before or returns the current instance for this plug-in manager.
+	 * </p>
 	 * 
 	 * @return The instance of the console
 	 */
@@ -135,9 +152,13 @@ public class InjectionPluginManager extends PluginManager
 	}
 	
 	/**
-	 * <p>Loads a plug-in whose .jar or .zip-file got already loaded
-	 * into the systems cache.</p>
-	 * @param pluginName Full name of the plug-in to load.
+	 * <p>
+	 * Loads a plug-in whose .jar or .zip-file got already loaded into the
+	 * systems cache.
+	 * </p>
+	 * 
+	 * @param pluginName
+	 *            Full name of the plug-in to load.
 	 */
 	protected Class<?> loadPlugin(String pluginName, StrategyClassLoader<IPlugin> loader, URL fileURL)
 	{
@@ -177,25 +198,30 @@ public class InjectionPluginManager extends PluginManager
 					// and remove the added jar file to prevent following classes
 					// from being loaded by the singleton class loader
 					this.pluginStrategy.setClassPath(cpBefore);
-//					System.out.println("[PluginManager.loadPlugin] Used Singleton-ClassLoader for "+result+" with classloader "+result.getClassLoader());
+					logger.log(Level.INFO, "Used Singleton-ClassLoader for {0} with classloader {1}", 
+							new Object[] {result, result.getClassLoader()});
 				}
 				else
 				{
 					loader.addStrategy(injector);
 					result = loader.loadClass(pluginName);
-//					System.out.println("[PluginManager.loadPlugin] Used plugin-specific-ClassLoader for "+result+" with classloader "+result.getClassLoader());
+					logger.log(Level.INFO, "Used plugin-specific-ClassLoader for {0} with classloader {1}", 
+							new Object[] {result, result.getClassLoader()});
 				}
 			}
 			else
 			{
 				result = loader.loadClass(pluginName);
-//				System.out.println("[PluginManager.loadPlugin] Used a plug-in ClassLoader for "+result+" with classloader "+result.getClassLoader());
+				logger.log(Level.INFO, "Used a plug-in ClassLoader for {0} with classloader {1}", 
+						new Object[] { result, result.getClassLoader()});
 			}
 			
 			return result;
 		}
 		catch (Exception e)
 		{
+			logger.log(Level.WARNING, "Caught exception during loadin of plugin: {0} - Reason: {1}", 
+					new Object[] {pluginName, e.getLocalizedMessage()});
 			throw new PluginException(e.getLocalizedMessage());
 		}
 	}
