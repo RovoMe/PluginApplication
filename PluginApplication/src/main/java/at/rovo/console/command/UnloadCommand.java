@@ -69,6 +69,7 @@ public class UnloadCommand extends ConsoleCommand
 				{
 					plugin = plugins.toArray(plugin);
 					this.manager.unload(plugin[num-1]);
+					System.gc();
 					System.out.println("Plugin unloaded: "+plugin[num-1]);
 				}
 				else

@@ -72,7 +72,15 @@ public class Main implements IPluginListener
 			logger.log(Level.INFO, "Application initialized");
 			
 			// start the console
-			Console.getInstance().run();
+			Thread console = new Thread(Console.INSTANCE);
+			console.setName("Console");
+			console.start();
+			// wait on the console to finish
+			console.join();
+			
+			// cleanup
+			manager.close();
+			System.out.println("Application exited");
 		} 
 		catch (Exception e) 
 		{
@@ -89,13 +97,13 @@ public class Main implements IPluginListener
 	@Override
 	public void pluginRemoved(String pluginName)
 	{
-		logger.log(Level.INFO, "{0} was renived!", new Object[] {pluginName});
+		logger.log(Level.INFO, "{0} was removed!", new Object[] {pluginName});
 	}
 
 	@Override
 	public void exception(String pluginName, Exception e)
 	{
-		logger.log(Level.WARNING, "Received {0} from {1}", 
+		logger.log(Level.WARNING, "Caught exception: {0} for {1}", 
 				new Object[] {e.getLocalizedMessage() , pluginName});
 	}
 

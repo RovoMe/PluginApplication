@@ -57,4 +57,10 @@ public class SimplePluginManager extends PluginManager
 			instance = new SimplePluginManager();
 		return instance;
 	}
+	
+	@Override
+	public void close()
+	{
+		
+	}
 }

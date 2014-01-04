@@ -45,7 +45,10 @@ public class LogFormatter extends Formatter
 			{
 				for (int i=0; i<objs.length; i++)
 				{
-					message = message.replace("{"+i+"}", objs[i].toString());
+					if (objs[i] == null)
+						message = message.replace("{"+i+"}", "null");
+					else
+						message = message.replace("{"+i+"}", objs[i].toString());
 				}
 			}
 			sb.append(message);

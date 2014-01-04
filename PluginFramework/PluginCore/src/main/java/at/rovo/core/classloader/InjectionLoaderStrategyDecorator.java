@@ -189,7 +189,7 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 								// adding the controller as a private field to
 								// the class
 								CtField controller = CtField
-										.make("private static at.rovo.core.injection.IInjectionController ic = at.rovo.core.injection.InjectionControllerImpl.getInstance();",
+										.make("private static at.rovo.core.injection.IInjectionController ic = at.rovo.core.injection.InjectionControllerImpl.INSTANCE;",
 												cc);
 								cc.addField(controller);
 								// adding the new instance field
@@ -219,7 +219,7 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 							// class will be instrumented separately
 							if (constructor.getLongName().startsWith(className))
 							{
-								String code = "at.rovo.core.injection.IInjectionController ic = at.rovo.core.injection.InjectionControllerImpl.getInstance(); "
+								String code = "at.rovo.core.injection.IInjectionController ic = at.rovo.core.injection.InjectionControllerImpl.INSTANCE; "
 										+ "ic.initialize(this);";
 
 								constructor.insertAfter(code);

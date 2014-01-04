@@ -15,10 +15,11 @@ import at.rovo.console.command.ConsoleCommand;
  * @author Roman Vottner
  * @version 0.2
  */
-public class Console
+public enum Console implements Runnable
 {
-	/** The reference to the one and only instance of the console **/
-	private static Console console = null;
+	/** Application of the enum singleton pattern **/
+	INSTANCE;
+
 	/** The registered commands **/
 	private Map<String, ConsoleCommand> registeredCommands = null;
 	
@@ -28,19 +29,6 @@ public class Console
 	private Console()
 	{
 		this.registeredCommands = new ConcurrentHashMap<>();
-	}
-	
-	/**
-	 * <p>Creates a new instance of the console if non was created before
-	 * or returns the current instance for this console.</p>
-	 * 
-	 * @return The instance of the console
-	 */
-	public static Console getInstance()
-	{
-		if (console == null)
-			console = new Console();
-		return console;
 	}
 	
 	/**
@@ -110,6 +98,5 @@ public class Console
 			command = scanner.nextLine();
 		}
 		scanner.close();
-		System.out.println("Application exited");
 	}
 }

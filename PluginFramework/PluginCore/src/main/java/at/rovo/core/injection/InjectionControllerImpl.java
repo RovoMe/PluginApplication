@@ -1,5 +1,9 @@
 package at.rovo.core.injection;
 
+import java.lang.ref.PhantomReference;
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -8,10 +12,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import at.rovo.core.ClassFinder;
@@ -61,26 +64,97 @@ import at.rovo.annotations.ScopeType;
  * 
  * @author Roman Vottner
  */
-public class InjectionControllerImpl implements IInjectionController
+public enum InjectionControllerImpl implements IInjectionController
 {
+	/** Application of the enum singleton pattern **/
+	INSTANCE;
+	
 	/** The logger of this class **/
-	private static Logger logger = Logger.getLogger(InjectionControllerImpl.class.getName());
-    private static InjectionControllerImpl me;
-    private Map<String,Object> singletonRef = 
-            Collections.synchronizedMap(new HashMap<String, Object>());
-    private Set<Object> initializations = Collections.synchronizedSet(new LinkedHashSet<Object>());
+	private static Logger logger = 
+			Logger.getLogger(InjectionControllerImpl.class.getName());
+	
+	/** Keeps track of singleton instances which should get injected into a 
+	 * <code>@Component</code> annotated class **/
+    private final Map<String, WeakReference<Object>> singletonRef = 
+            Collections.synchronizedMap(new HashMap<String, WeakReference<Object>>());
+    
+    /** Contains a reference **/
+    private final Map<PhantomReference<Object>, String> initializations = 
+    		Collections.synchronizedMap(new LinkedHashMap<PhantomReference<Object>, String>());
+    
+    /** Will contain a reference to objects that have been removed by the 
+     * garbage collector **/
+    private final ReferenceQueue<Object> refQueue = new ReferenceQueue<>();
+    
+    /** The thread that deals with checking if a reference got deleted **/
+    private Thread cleanUpThread = null;
+    
+    /** Keeps track of the number of instantiated classes. The ID will be 
+     * assigned to the <code>@Component</code> annotated class as its 
+     * <code>@ComponentId</code>.**/
     private Long uniqueId = 0L;
     
+    /** If set to true will terminate the cleanUp thread **/
+    private volatile boolean done = false;
+    
+    /**
+     * <p>
+     * Hide the default constructor.
+     * </p>
+     * <p>
+     * On initializing a background thread will be created that listens if a 
+     * certain class gets unloaded. It therefore makes use of a 
+     * {@link ReferenceQueue} which contains a reference if the object was 
+     * removed by the garbage collector.
+     * </p>
+     */
     private InjectionControllerImpl()
     {
-    	
+    	this.cleanUpThread = new Thread(new Runnable() 
+    	{
+    		public void run()
+    		{
+    			try
+				{
+    				while (!done)
+    				{
+    					// call to remove blocks until an object is available 
+    					// for removal
+						Reference<?> ref = refQueue.remove(500);
+						synchronized (initializations)
+						{
+							// check if the map containing the already 
+							// initialized objects has a reference to an 
+							// unloaded object
+							if (initializations.containsKey(ref))
+							{
+								logger.log(Level.INFO, "Unloading object {0}", 
+										new Object[] { initializations.get(ref) });
+								initializations.remove(ref);
+							}
+						}
+    				}
+				}
+				catch (InterruptedException e)
+				{
+					if (!done)
+						e.printStackTrace();
+				}
+    		}
+    	});
+    	this.cleanUpThread.setName("CleanUp");
+    	this.cleanUpThread.setDaemon(true);
+    	this.cleanUpThread.start();
     }
     
-    public static InjectionControllerImpl getInstance()
+    /**
+     * <p>
+     * Signals the cleanUp thread to terminate.
+     * </p>
+     */
+    public void close()
     {
-        if (me == null)
-            me = new InjectionControllerImpl();
-        return me;
+    	this.done = true;
     }
     
     @Override
@@ -90,13 +164,18 @@ public class InjectionControllerImpl implements IInjectionController
         Class<?> clazz = obj.getClass();
         if (!clazz.isAnnotationPresent(Component.class))
             throw new InjectionException("Object '"+obj.toString()+"' is not a component: "+obj);
+        
         // check for multiple initialization calls for the same objects
-        if (!this.initializations.contains(obj))
+        synchronized (initializations)
         {
-        	logger.log(Level.INFO, "{0} loaded with class loader: {1}", 
-        			new Object[] {obj, obj.getClass().getClassLoader()});
-        	this.initializations.add(obj);
-        	obj = this.initializeObject(obj, true);
+	        if (!this.initializations.containsValue(obj.toString()))
+	        {
+	        	logger.log(Level.INFO, "{0} loaded with class loader: {1}", 
+	        			new Object[] {obj, obj.getClass().getClassLoader()});
+	        	PhantomReference<Object> ref = new PhantomReference<>(obj, refQueue);
+	        	this.initializations.put(ref, obj.toString());
+	        	obj = this.initializeObject(obj, true);
+	        }
         }
         return obj;
     }
@@ -179,21 +258,40 @@ public class InjectionControllerImpl implements IInjectionController
         if (comp.scope().equals(ScopeType.SINGLETON))
         {
             // a singleton is created only once
-            if (this.singletonRef.containsKey(obj.getClass().getName()))
-            {
-            	if (isOriginCall)
-            	{
-//                    throw new InjectionException("Cannot initialize further instances of a singleton class: "+obj);
-	            	obj = this.singletonRef.get(obj.getClass().getName());
-            	}
-            }
-            else
-            {
-            	logger.log(Level.INFO, "adding {0} to singleton-list", 
-            			new Object[] {obj});
-                this.singletonRef.put(obj.getClass().getName(), obj);
-                this.injectFields(obj, componentId, injectFields, required);
-            }
+        	synchronized (singletonRef)
+        	{
+	            if (this.singletonRef.containsKey(obj.getClass().getName()))
+	            {
+	            	if (isOriginCall)
+	            	{
+	//                    throw new InjectionException("Cannot initialize further instances of a singleton class: "+obj);
+		            	WeakReference<?> ref = this.singletonRef.get(obj.getClass().getName());
+		            	Object o = ref.get();
+		            	logger.log(Level.INFO, "retrieving singleton {0} from list: {1}", 
+	            				new Object[] { obj.getClass().getName(), o });
+		            	if (o != null)
+		            	{
+		            		obj = o;
+		            	}
+		            	else
+		            	{
+		            		logger.log(Level.INFO, "removing {0} from singleton-list - its reference is null", 
+		            				new Object[] { obj.getClass().getName() });
+		            		this.singletonRef.remove(obj.getClass().getName());
+		            		obj = null;
+		            	}
+	            	}
+	            }
+	            else
+	            {
+	            	WeakReference<Object> ref = new WeakReference<>(obj);
+	            	logger.log(Level.INFO, "adding {0} to singleton-list as {1}", 
+	            			new Object[] { obj, ref });
+	            	
+	                this.singletonRef.put(obj.getClass().getName(), ref);
+	                this.injectFields(obj, componentId, injectFields, required);
+	            }
+        	}
         }
         else
         	this.injectFields(obj, componentId, injectFields, required);
@@ -308,7 +406,7 @@ public class InjectionControllerImpl implements IInjectionController
                     // As interfaces can't be instantiated we have to find some
                     // implementations of this interface
                     List<Class<?>> implementingClasses = 
-                    	ClassFinder.getInstance().findImplementingClasses(toInject, 
+                    	ClassFinder.INSTANCE.findImplementingClasses(toInject, 
                     			obj.getClass().getClassLoader());
                     
                     // If no implementations could be found, raise an error
@@ -354,7 +452,22 @@ public class InjectionControllerImpl implements IInjectionController
 							getInstance.invoke(null, o);
 							// as the object was initialized and stored in the singleton list
 							// before, we now should have access to it
-							injObj = this.singletonRef.get(toLoad.getName());								
+							synchronized (singletonRef)
+							{
+								WeakReference<?> ref = this.singletonRef.get(toLoad.getName());
+								Object _o = ref.get();
+								logger.log(Level.INFO, "retrieving singleton {0} for injection {1}", 
+			            				new Object[] { obj.getClass().getName(), o });
+								if (_o != null)
+									injObj = _o;
+								else
+								{
+									logger.log(Level.INFO, "removing {0} from singleton-list - can't be injected due to null", 
+				            				new Object[] { toLoad.getName() });
+									this.singletonRef.remove(toLoad.getName());
+									injObj = null;
+								}
+							}
 						}
 						catch (SecurityException e)
 						{
@@ -456,39 +569,46 @@ public class InjectionControllerImpl implements IInjectionController
     {
         try
         {   	
-        	if(this.singletonRef.containsKey(classToLoad.getName()))
+        	synchronized (singletonRef)
         	{
-        		return (T)this.singletonRef.get(classToLoad.getName());
-        	}
-        	else
-        	{
-				Constructor<T>[] cons = (Constructor<T>[])classToLoad.getDeclaredConstructors(); 
-	        	// Change the accessible property for all constructors
-	            AccessibleObject.setAccessible(cons, true); 
-	            // iterate through all defined constructors
-	            Constructor<T> defaultConstructor = null;
-	            for (int i = 0; i < cons.length; i++) 
-	            {
-	            	if (cons[i].getParameterTypes().length == 0) 
-	            	{
-	            		defaultConstructor = cons[i];
-	            		break;
-	            	}
-	            }
-	            
-	            Object[] o = null;
-	            T injObj = defaultConstructor.newInstance(o);
-	            if (!classToLoad.isInstance(injObj))
-	            {
-	            	logger.log(Level.WARNING, "Could not instantiate {0}", 
-	            			new Object[] {classToLoad.getName()});
-	                throw new InjectionException("Could not instantiate "+
-	                        classToLoad.getName()+"!");
-	            }
-	
-	            logger.log(Level.INFO, "Initialized object: {0} loader: {1}", 
-	            		new Object[] {injObj, injObj.getClass().getClassLoader()});
-	            return injObj;
+	        	if(this.singletonRef.containsKey(classToLoad.getName()))
+	        	{
+	        		WeakReference<?> ref = this.singletonRef.get(classToLoad.getName());
+	        		T t = (T)ref.get();
+	        		logger.log(Level.INFO, "loading class for singleton {0}: {1}", 
+            				new Object[] { classToLoad.getName(), t });
+	        		return t;
+	        	}
+	        	else
+	        	{
+					Constructor<T>[] cons = (Constructor<T>[])classToLoad.getDeclaredConstructors(); 
+		        	// Change the accessible property for all constructors
+		            AccessibleObject.setAccessible(cons, true); 
+		            // iterate through all defined constructors
+		            Constructor<T> defaultConstructor = null;
+		            for (int i = 0; i < cons.length; i++) 
+		            {
+		            	if (cons[i].getParameterTypes().length == 0) 
+		            	{
+		            		defaultConstructor = cons[i];
+		            		break;
+		            	}
+		            }
+		            
+		            Object[] o = null;
+		            T injObj = defaultConstructor.newInstance(o);
+		            if (!classToLoad.isInstance(injObj))
+		            {
+		            	logger.log(Level.WARNING, "Could not instantiate {0}", 
+		            			new Object[] {classToLoad.getName()});
+		                throw new InjectionException("Could not instantiate "+
+		                        classToLoad.getName()+"!");
+		            }
+		
+		            logger.log(Level.INFO, "Initialized object: {0} loader: {1}", 
+		            		new Object[] {injObj, injObj.getClass().getClassLoader()});
+		            return injObj;
+	        	}
         	}
         }     
         catch (IllegalAccessException | InstantiationException | IllegalArgumentException | InvocationTargetException e) 
@@ -504,10 +624,25 @@ public class InjectionControllerImpl implements IInjectionController
     }
     
 	@Override
-    public synchronized <T> T getSingletonInstance(Class<T> clazz) throws InjectionException
+    public <T> T getSingletonInstance(Class<T> clazz) throws InjectionException
     {
-		@SuppressWarnings("unchecked")
-    	T ret = (T)this.singletonRef.get(clazz.getName());
-        return ret;
+		synchronized (singletonRef)
+		{
+			WeakReference<?> ref = this.singletonRef.get(clazz.getName());
+			if (ref != null)
+			{
+				Object obj = ref.get();
+				logger.log(Level.INFO, "retrieving singleton instance of class {0}: {1}", 
+        				new Object[] { clazz.getName(), obj });
+				if (obj != null)
+				{
+					@SuppressWarnings("unchecked")
+			    	T ret = (T)obj;
+			        return ret;
+				}
+			}
+			return null;
+//			throw new InjectionException("Could not inject singleton: "+clazz.getName()+" as singleton is null");
+		}
     }
 }

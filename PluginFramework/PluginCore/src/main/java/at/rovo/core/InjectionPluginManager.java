@@ -11,6 +11,7 @@ import at.rovo.core.classloader.IClassLoaderStrategy;
 import at.rovo.core.classloader.InjectionLoaderStrategyDecorator;
 import at.rovo.core.classloader.PluginLoaderStrategy;
 import at.rovo.core.classloader.StrategyClassLoader;
+import at.rovo.core.injection.InjectionControllerImpl;
 import at.rovo.plugin.IPlugin;
 import at.rovo.plugin.PluginException;
 
@@ -48,7 +49,8 @@ import at.rovo.plugin.PluginException;
 public class InjectionPluginManager extends PluginManager
 {
 	/** The logger of this class **/
-	private static Logger logger = Logger.getLogger(InjectionPluginManager.class.getName());
+	private static Logger logger = 
+			Logger.getLogger(InjectionPluginManager.class.getName());
 	/** The reference to the one and only instance of the InjectionPluginManager **/
 	private static InjectionPluginManager instance = null;
 	/** The class loader which holds the singleton components **/
@@ -224,5 +226,11 @@ public class InjectionPluginManager extends PluginManager
 					new Object[] {pluginName, e.getLocalizedMessage()});
 			throw new PluginException(e.getLocalizedMessage());
 		}
+	}
+	
+	@Override
+	public void close()
+	{
+		InjectionControllerImpl.INSTANCE.close();
 	}
 }

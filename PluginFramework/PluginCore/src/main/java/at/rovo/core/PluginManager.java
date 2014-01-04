@@ -15,6 +15,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.jar.Attributes;
 import java.util.jar.JarException;
 import java.util.jar.JarFile;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import at.rovo.core.classloader.IClassLoaderStrategy;
 import at.rovo.core.classloader.PluginLoaderStrategy;
 import at.rovo.core.classloader.StrategyClassLoader;
@@ -65,6 +67,9 @@ import at.rovo.plugin.PluginException;
  */
 public abstract class PluginManager implements IDirectoryChangeListener
 {
+	/** The logger of this class **/
+	private static final Logger 
+		logger = Logger.getLogger(PluginManager.class.getName());
 	/** The directory plug-ins should be found **/
 	private String pluginDir = null;
 	/** A mapping of plug-in names and their corresponding meta-data **/
@@ -473,6 +478,7 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	 */
 	public IPlugin getNewPluginInstance(String name)
 	{
+		logger.log(Level.INFO, "plugin-name: {0}", new Object[] { name });
 		PluginMeta meta = this.pluginData.get(name);
 		Class<IPlugin> _class = meta.getClassObj();
 		Constructor<IPlugin> c;
@@ -598,4 +604,11 @@ public abstract class PluginManager implements IDirectoryChangeListener
 		}
 		return "";
 	}
+	
+	/**
+	 * <p>
+	 * Executes cleanup steps necessary in order to finish properly.
+	 * </p>
+	 */
+	public abstract void close();
 }

@@ -30,7 +30,7 @@ public abstract class ConsoleCommand
 	protected ConsoleCommand(String command, PluginManager manager)
 	{
 		this.command = command;
-		this.console = Console.getInstance();
+		this.console = Console.INSTANCE;
 		this.console.registerCommand(command, this);
 		this.manager = manager;
 	}

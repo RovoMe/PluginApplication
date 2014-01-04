@@ -40,10 +40,11 @@ import java.util.jar.JarFile;
  * @author Roman Vottner
  * @version 0.1
  */
-public class ClassFinder
+public enum ClassFinder
 {
-	/** The reference to the one and only instance of ClassFinder **/
-	private static ClassFinder cf;
+	/** Application of the enum singleton pattern **/
+	INSTANCE;
+	
 	/** A set of directories to look for classes **/
 	private Set<String> directories;
 	/** A set of jar files to look for classes **/
@@ -62,21 +63,6 @@ public class ClassFinder
 			else
 				this.directories.add(path);
 		}
-	}
-	
-	/**
-	 * <p>
-	 * Creates a new instance of the <em>ClassFinder</em> if non was created
-	 * before or returns the current instance for this class.
-	 * </p>
-	 * 
-	 * @return The instance of the <em>ClassFinder</em>
-	 */
-	public static ClassFinder getInstance()
-	{
-		if (cf == null)
-			cf = new ClassFinder();
-		return cf;
 	}
 	
 	/**
