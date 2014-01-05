@@ -222,7 +222,7 @@ public class InjectionPluginManager extends PluginManager
 		}
 		catch (Exception e)
 		{
-			logger.log(Level.WARNING, "Caught exception during loadin of plugin: {0} - Reason: {1}", 
+			logger.log(Level.WARNING, "Caught exception during loading of plugin: {0} - Reason: {1}", 
 					new Object[] {pluginName, e.getLocalizedMessage()});
 			throw new PluginException(e.getLocalizedMessage());
 		}

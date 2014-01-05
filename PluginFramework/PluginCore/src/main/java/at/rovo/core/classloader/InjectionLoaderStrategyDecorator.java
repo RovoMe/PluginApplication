@@ -8,6 +8,8 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javassist.ByteArrayClassPath;
 import javassist.CannotCompileException;
 import javassist.ClassClassPath;
@@ -16,6 +18,7 @@ import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtConstructor;
 import javassist.CtField;
+import javassist.CtMethod;
 import javassist.CtNewConstructor;
 import javassist.NotFoundException;
 import at.rovo.annotations.Component;
@@ -60,6 +63,9 @@ import at.rovo.plugin.InjectionException;
  */
 public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 {
+	/** The logger of this class **/
+	private static Logger LOGGER = 
+			Logger.getLogger(InjectionLoaderStrategyDecorator.class.getName());
 	/** The strategy to decorate **/
 	private IClassLoaderStrategy strategy = null;
 	/** The jar file to load the class bytes from for class modifications **/
@@ -155,22 +161,8 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 					if (cc.hasAnnotation(Component.class))
 					{
 						// treat singleton components differently to prototype
-						// components.
-						//
-						// the latter ones get the code injected into the
-						// constructor, the primer ones will get their instance
-						// field, which is by now mandatory, injected with the 
-						// method-call to IInjectController.
-						//
-						// this is necessary as singletons have a private
-						// constructor and the static method getInstance()
-						// prevents multiple calls of the constructor - moreover
-						// a further instance would be created doing so.
-						//
-						// The workaround here is to create a new instance for
-						// the initialize method which will be replaced by the
-						// stored singleton instance if already one exists, else
-						// the created instance is the new singleton instance
+						// components as they require an initialization method
+						// as the constructor is private
 						Object o = cc.getAnnotation(Component.class);
 						Component comp = null;
 						if (o.toString().contains(Component.class.getName()))
@@ -181,25 +173,7 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 							// the component is a singleton!
 							// fetch the instance field we want to inject the
 							// call to
-							CtField instance = cc.getDeclaredField("instance");
-							if (instance != null)
-							{
-								// removing the old instance field
-								cc.removeField(instance);
-								// adding the controller as a private field to
-								// the class
-								CtField controller = CtField
-										.make("private static at.rovo.core.injection.IInjectionController ic = at.rovo.core.injection.InjectionControllerImpl.INSTANCE;",
-												cc);
-								cc.addField(controller);
-								// adding the new instance field
-								String code = "private static " + cc.getName()
-										+ " instance = (" + cc.getName()
-										+ ")ic.initialize(new " + cc.getName()
-										+ "());";
-								CtField newInstance = CtField.make(code, cc);
-								cc.addField(newInstance);
-							}
+							this.findSingletonFieldsAndInjectCode(cc);
 						}
 						else if (comp != null)
 						{
@@ -242,9 +216,144 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 		}
 		return strategyBytes;
 	}
+	
+	/**
+	 * <p>
+	 * Iterates through defined fields of the provided class and injects 
+	 * necessary code for singleton classes.
+	 * </p>
+	 * <p>
+	 * The method looks for a field name that matches one of the following 
+	 * rules:
+	 * </p>
+	 * <ul>
+	 * <li>Field name equals <code>instance</code></li>
+	 * <li>Field name equals <code>reference</code></li>
+	 * <li>Field name starts with <code>ini</code></li>
+	 * <li>Field name starts with <code>ref</code></li>
+	 * </ul>
+	 * <p>
+	 * Note that field names are checked in case insensitive manner.
+	 * </p>
+	 * <p>
+	 * If multiple fields match the given name an {@link InjectionException}
+	 * will be thrown indicating the ambiguity found. If no matching field could
+	 * be found one will be generated automatically. Note further that a method
+	 * with name <code>getInstance()</code> will be looked which will be 
+	 * replaced by an own implementation.
+	 * </p>
+	 * 
+	 * @param cc The class to inject code into
+	 * 
+	 * @throws NotFoundException 
+	 * @throws CannotCompileException 
+	 */
+	private final void findSingletonFieldsAndInjectCode(CtClass cc) 
+			throws CannotCompileException, NotFoundException
+	{
+		int count = 0;
+		for (CtField field : cc.getDeclaredFields())
+		{
+			String fieldName = field.getName().toLowerCase();
+			if (fieldName.equals("instance") || fieldName.startsWith("ini")
+					|| fieldName.equals("reference") || fieldName.startsWith("ref"))
+			{
+				LOGGER.log(Level.FINE, "found singleton field to inject: {0}",
+						new Object[] { fieldName });
+				count++;
+				if (count > 1)
+					throw new InjectionException(
+							"Multiple fields found that could be appropriate for injection!");
+				
+				this.injectIntoSingletonField(cc, field);
+			}
+		}
+	}
+	
+	/**
+	 * <p>
+	 * This method removes the field holding the singleton instance and a the 
+	 * corresponding getInstance() method and replaces it with its own version.
+	 * </p>
+	 * <p>
+	 * The code injected will make use of the <em>WeakSingleton</em> pattern
+	 * which unloads the singleton if no strong reference is pointing to the
+	 * singleton. This might lead to flaws as if no plugin-global reference is
+	 * kept to the singleton it might get eligible for garbage collection.
+	 * </p>
+	 * 
+	 * @param cc The class to inject code into
+	 * @param instance The field which declares the static singleton instance
+	 * 
+	 * @throws CannotCompileException
+	 * @throws NotFoundException
+	 */
+	private final void injectIntoSingletonField(CtClass cc, CtField instance) 
+			throws CannotCompileException, NotFoundException
+	{
+		// removing the old instance field
+		if (instance != null)
+		{
+			LOGGER.log(Level.FINE, "removing field {0} from {1}", 
+					new Object[] { instance.getName(), cc.getName() });
+			cc.removeField(instance);
+		}
+		
+		// adding the controller as a private field to
+		// the class
+		CtField controller = CtField
+				.make("private static at.rovo.core.injection.IInjectionController ic "
+						+ "= at.rovo.core.injection.InjectionControllerImpl.INSTANCE;",
+						cc);
+		cc.addField(controller);
+		LOGGER.log(Level.FINE, "added field to {0}", 
+				new Object[] { cc.getName() } );
+		
+		// adding the new instance field		
+		String code = "private static java.lang.ref.WeakReference REFERENCE;";
+		LOGGER.log(Level.FINE, "adding field {0} to {1}", 
+				new Object[] { code, cc.getName() });
+		CtField newInstance = CtField.make(code, cc);
+		cc.addField(newInstance);
+		
+		// remove any existing getInstance() method of singletons
+		
+		CtMethod getInstance = cc.getDeclaredMethod("getInstance", new CtClass[] {});
+		if (getInstance != null)
+		{
+			LOGGER.log(Level.FINE, "Removing getInstance() method of {0}", 
+					new Object[] { cc.getName() });
+			cc.removeMethod(getInstance);
+		}
+		
+		// add a new version of the singletons getInstance() method to the class
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("public static "+cc.getName()+" getInstance() {\n");
+		sb.append("if (REFERENCE == null) {\n");
+		sb.append("synchronized("+cc.getName()+".class) {\n");
+		sb.append("if (REFERENCE == null) {\n");
+		sb.append("final "+cc.getName()+" instance = ("+cc.getName()+")ic.initialize(new "+cc.getName()+"());\n");
+		sb.append("REFERENCE = new java.lang.ref.WeakReference(instance);\n");
+		sb.append("}\n}\n}\n");
+		sb.append(cc.getName()+" instance = ("+cc.getName()+")REFERENCE.get();\n");
+		sb.append("if (instance != null)\n");
+		sb.append("return instance;\n");
+		sb.append("synchronized("+cc.getName()+".class) {\n");
+		sb.append("instance = ("+cc.getName()+")ic.initialize(new "+cc.getName()+"());\n");
+		sb.append("REFERENCE = new java.lang.ref.WeakReference(instance);\n");
+		sb.append("return instance;\n");
+		sb.append("}\n}");
+		
+		LOGGER.log(Level.FINE, "Adding modified version of getInstance() to {0} - content is:\n{1}",
+				new Object[] { cc.getName(), sb.toString() } );
+		
+		getInstance = CtMethod.make(sb.toString(), cc);
+		cc.addMethod(getInstance);
+	}
 
 	@Override
-	public URL findResourceURL(String resourceName)
+	public final URL findResourceURL(String resourceName)
 	{
 		return strategy.findResourceURL(resourceName);
 	}

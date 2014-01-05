@@ -14,6 +14,7 @@ package at.rovo.plugin.injection;
 
 import at.rovo.annotations.Component;
 import at.rovo.annotations.ComponentId;
+import at.rovo.annotations.Inject;
 import at.rovo.annotations.ScopeType;
 import at.rovo.plugin.IPlugin;
 import at.rovo.plugin.InjectionException;
@@ -24,6 +25,9 @@ public class ControllerWithInjections implements IPlugin
     @ComponentId
     private Long id;
     
+    @Inject
+    private D d;
+    
     public void setId(Long id)
     {
     	this.id = id;
@@ -32,6 +36,16 @@ public class ControllerWithInjections implements IPlugin
     public Long getId()
     {
     	return this.id;
+    }
+    
+    public void setD(D d)
+    {
+        this.d = d;
+    }
+    
+    public D getD()
+    {
+        return this.d;
     }
 
 	@Override

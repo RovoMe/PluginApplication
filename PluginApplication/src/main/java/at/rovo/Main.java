@@ -103,8 +103,22 @@ public class Main implements IPluginListener
 	@Override
 	public void exception(String pluginName, Exception e)
 	{
-		logger.log(Level.WARNING, "Caught exception: {0} for {1}", 
-				new Object[] {e.getLocalizedMessage() , pluginName});
+		StringBuilder sb = new StringBuilder();
+		sb.append("Exception occurred: ");
+		sb.append(e.getClass().getName());
+		sb.append("\n");
+		for (StackTraceElement elem : e.getStackTrace())
+		{
+			sb.append("\t");
+			sb.append(elem.getClassName());
+			sb.append("::");
+			sb.append(elem.getMethodName());
+			sb.append(" at ");
+			sb.append(elem.getLineNumber());
+			sb.append("\n");
+		}
+		logger.log(Level.WARNING, "Caught exception: {0} for {1}\n {2}", 
+				new Object[] {e.getLocalizedMessage() , pluginName, sb.toString() });
 	}
 
 	/**

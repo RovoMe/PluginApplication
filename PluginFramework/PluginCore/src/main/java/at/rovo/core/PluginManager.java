@@ -485,7 +485,9 @@ public abstract class PluginManager implements IDirectoryChangeListener
 		try 
 		{
 			c = _class.getConstructor();
-			return c.newInstance();
+			IPlugin instance = c.newInstance();
+			meta.setPlugin(instance);
+			return instance;
 		} 
 		catch (Exception e)
 		{
@@ -534,6 +536,16 @@ public abstract class PluginManager implements IDirectoryChangeListener
 		PluginMeta meta = this.pluginData.get(name);
 		if (meta != null)
 		{
+			// on removing the plugin instance all objects held by this instance
+			// will lose their strong reference and will be eligible for garbage
+			// collection. Singleton instances however may prevent the the clean
+			// up step as they keep a strong reference to themselves.
+			meta.setPlugin(null);
+			// the class loader is only removed if all initialized objects 
+			// defined by the plugin are unloaded. If a further plugin 
+			// references any class of this plugin the classloader can't be
+			// garbage collected and stays alive till the strong reference is 
+			// lost
 			meta.setClassLoader(null);
 			meta.setClassObj(null);
 			

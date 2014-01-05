@@ -1,5 +1,6 @@
 package at.rovo.plugin.injection;
 
+import java.lang.ref.WeakReference;
 import at.rovo.annotations.Component;
 import at.rovo.annotations.ComponentId;
 import at.rovo.annotations.Inject;
@@ -8,7 +9,8 @@ import at.rovo.annotations.ScopeType;
 @Component(scope=ScopeType.SINGLETON)
 public class E
 {
-    private static E instance;
+    private static WeakReference<E> INSTANCE;
+    
 	@ComponentId
     private Long id;
     @Inject
@@ -21,9 +23,28 @@ public class E
     
     public static E getInstance()
     {
-    	if (instance == null)
-    		instance = new E();
-    	return instance;
+    	if (INSTANCE == null)
+    	{
+    		synchronized (E.class)
+    		{
+    			if (INSTANCE == null)
+    			{
+		    		final E instance = new E();
+		    		INSTANCE = new WeakReference<>(instance);
+		    		return instance;
+    			}
+    		}
+    	}
+    	E instance = INSTANCE.get();
+    	if (instance != null)
+    		return instance;
+    	
+    	synchronized (E.class)
+    	{
+		   	instance = new E();
+		   	INSTANCE = new WeakReference<>(instance);
+		   	return instance;
+    	}
     }
     
     public Long getId()
