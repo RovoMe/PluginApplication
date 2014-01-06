@@ -15,6 +15,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import at.rovo.core.ClassFinder;
@@ -97,6 +100,12 @@ public enum InjectionControllerImpl implements IInjectionController
 	
 	/** If set to true will terminate the cleanUp thread **/
 	private volatile boolean done = false;
+	/** states if the cleanup state is currently sleeping **/
+	private volatile boolean isSleeping = false;
+	
+	// lock to send a thread to sleep and wake up again
+	final Lock lock = new ReentrantLock();
+	final Condition noReferenceToMonitorAvailable = lock.newCondition();
 	
 	/**
 	 * <p>
@@ -148,6 +157,21 @@ public enum InjectionControllerImpl implements IInjectionController
 								}
 							}
 						}
+						
+						// pause the thread if both maps are empty --> no 
+						// injected classes available; either nothing got loaded
+						//  or everything is unloaded
+						if (initializations.isEmpty() && singletonRef.isEmpty())
+						{
+							synchronized (cleanUpThread)
+							{
+								// wait till new references arrive
+								isSleeping = true;
+								Thread.currentThread().wait();
+								noReferenceToMonitorAvailable.await();
+								isSleeping = false;
+							}
+						}
 					}
 				}
 				catch (InterruptedException e)
@@ -170,6 +194,16 @@ public enum InjectionControllerImpl implements IInjectionController
 	public void close()
 	{
 		this.done = true;
+		
+		if (isSleeping)
+		{
+//			synchronized(this.cleanUpThread)
+//			{
+//				this.cleanUpThread.notify();
+//			}
+			// let the clean up thread finish gracefully
+//			noReferenceToMonitorAvailable.signal();
+		}
 	}
 	
 	@Override
@@ -188,7 +222,21 @@ public enum InjectionControllerImpl implements IInjectionController
 				logger.log(Level.INFO, "{0} loaded with class loader: {1}", 
 						new Object[] {obj, obj.getClass().getClassLoader()});
 				PhantomReference<Object> ref = new PhantomReference<>(obj, refQueue);
+				boolean isEmpty = this.initializations.isEmpty();
 				this.initializations.put(ref, obj.toString());
+				// as we've added some data to the map and it was empty 
+				// before wake-up the cleanup thread in order to listen to
+				// receive phantom references if the garbage collector finalizes 
+				// the object
+				if (isEmpty)
+				{
+					synchronized (this.cleanUpThread)
+					{
+						this.cleanUpThread.notify();
+					}
+					// signal that new references to monitor are available
+					noReferenceToMonitorAvailable.signal();
+				}
 				obj = this.initializeObject(obj, true);
 			}
 		}

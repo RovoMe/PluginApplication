@@ -189,10 +189,11 @@ public abstract class PluginManager implements IDirectoryChangeListener
 				this.reloadPlugin(file);
 				break;
 			case FILE_DELETED:
-				// On dragging a jar inside the plug-in directory to a different location
-				// a FILE_DELETED action will be propagated by the FileMonitor
-				// if automatic unloading of the plug-in should not happen, comment out the
-				// following lines
+				// On dragging a jar inside the plug-in directory to a different 
+				// location a FILE_DELETED action will be propagated by the 
+				// FileMonitor
+				// if automatic unloading of the plug-in should not happen, 
+				// comment out the following lines
 				String pluginName = null;
 				for (PluginMeta data : this.pluginData.values())
 				{
@@ -216,6 +217,7 @@ public abstract class PluginManager implements IDirectoryChangeListener
 				{
 					this.unload(pluginName);
 				}
+				System.gc();
 				break;
 			default:
 				throw new IllegalArgumentException("Unknown FileAction provided!");

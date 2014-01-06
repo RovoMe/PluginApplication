@@ -17,7 +17,7 @@ public class ExternalTestPlugin implements IPlugin
         System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
 		try
 		{
-			System.out.print("Creating new prototype B (b1) ");
+			System.out.print("Creating new prototype X (x) ");
 			X x = new X();
 			System.out.println("with classloader "+x.getClass().getClassLoader()+": ");
 			x.output();

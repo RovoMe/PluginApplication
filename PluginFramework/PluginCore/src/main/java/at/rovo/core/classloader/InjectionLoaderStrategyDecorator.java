@@ -5,9 +5,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javassist.ByteArrayClassPath;
@@ -20,9 +18,15 @@ import javassist.CtConstructor;
 import javassist.CtField;
 import javassist.CtMethod;
 import javassist.CtNewConstructor;
+import javassist.Modifier;
 import javassist.NotFoundException;
+import javassist.bytecode.AnnotationsAttribute;
+import javassist.bytecode.ClassFile;
+import javassist.bytecode.ConstPool;
+import javassist.bytecode.annotation.Annotation;
 import at.rovo.annotations.Component;
 import at.rovo.annotations.ScopeType;
+import at.rovo.core.injection.Instrumented;
 import at.rovo.plugin.InjectionException;
 
 /**
@@ -64,19 +68,14 @@ import at.rovo.plugin.InjectionException;
 public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 {
 	/** The logger of this class **/
-	private static Logger LOGGER = 
+	private final static Logger LOGGER = 
 			Logger.getLogger(InjectionLoaderStrategyDecorator.class.getName());
 	/** The strategy to decorate **/
 	private IClassLoaderStrategy strategy = null;
 	/** The jar file to load the class bytes from for class modifications **/
 	private File jarFile = null;
-	/**
-	 * The names of the classes that we've already instrumented so that we don't
-	 * implement them twice
-	 **/
-	private Set<String> instrumentedClasses = new HashSet<>();
 	/** A list of class prefixes that should not be instrumented */
-	private List<String> classesToSkip = new ArrayList<String>();
+	private final List<String> classesToSkip = new ArrayList<String>();
 
 	/**
 	 * <p>
@@ -116,14 +115,6 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 	@Override
 	public byte[] findClassBytes(String className)
 	{
-		// prevents injection classes from being hot deployed if they change
-		// only instrument a class once
-		if (this.instrumentedClasses.contains(className))
-		{
-			return null;
-		}
-		this.instrumentedClasses.add(className);
-
 		// skip in the list of class prefixes to skip
 		for (String classToSkip : this.classesToSkip)
 		{
@@ -156,10 +147,24 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 			try
 			{
 				CtClass cc = cp.get(className);
+				// skip instrumentation if the class is frozen and therefore 
+				// can't be modified
 				if (!cc.isFrozen())
-				{
-					if (cc.hasAnnotation(Component.class))
+				{					
+					// skip the injection if either the class is not a component
+					// or already got instrumented
+					if (cc.hasAnnotation(Component.class) && 
+							!cc.hasAnnotation(Instrumented.class))
 					{
+						// add an annotation to the class bytes so we know that
+						// we already instrumented that class
+						this.addAnnotationToClass(cc, Instrumented.class, cp);
+						
+						LOGGER.log(Level.FINE, "Class {0} has annotation {1}: {2}", 
+								new Object[] { cc.getName(), Instrumented.class.getName(), cc.hasAnnotation(Instrumented.class) });
+						LOGGER.log(Level.FINE, "Class {0} has annotation {1}: {2}", 
+								new Object[] { cc.getName(), Component.class.getName(), cc.hasAnnotation(Component.class) });
+						
 						// treat singleton components differently to prototype
 						// components as they require an initialization method
 						// as the constructor is private
@@ -219,22 +224,51 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 	
 	/**
 	 * <p>
+	 * Adds a annotation at class level to the provided class.
+	 * </p>
+	 * 
+	 * @param cc The class to inject the annotation into
+	 * @param annotation The annotation to inject
+	 * @throws NotFoundException 
+	 */
+	private void addAnnotationToClass(CtClass cc, Class<?> annotation, ClassPool cp) throws NotFoundException
+	{
+		if (!annotation.isAnnotation())
+		{
+			LOGGER.log(Level.WARNING, "Failed to add class {0} as annotation to {1} as it is not an annotation",
+					new Object[] { annotation.getName(), cc.getName() });
+			return;
+		}
+		
+		ClassFile ccFile = cc.getClassFile();
+		ConstPool constPool = ccFile.getConstPool();
+
+		// check if there are already annotations available
+		AnnotationsAttribute attr = (AnnotationsAttribute) 
+				ccFile.getAttribute(AnnotationsAttribute.visibleTag);
+		if (attr == null)
+		{
+			// no annotations found so create one 
+			LOGGER.log(Level.WARNING, "fetching annotation attributes from class file of {0} failed. Creating new one instead",
+					new Object[] { cc.getName() });
+			attr = new AnnotationsAttribute(constPool, AnnotationsAttribute.visibleTag);
+		}
+		Annotation annot = new Annotation(constPool, cp.get(annotation.getName()));
+		attr.addAnnotation(annot);
+		ccFile.addAttribute(attr);
+		
+		LOGGER.log(Level.FINE, "Added {0} as annotation at class level to {1}", 
+				new Object[] { annotation.getName(), cc.getName() });
+	}
+	
+	/**
+	 * <p>
 	 * Iterates through defined fields of the provided class and injects 
 	 * necessary code for singleton classes.
 	 * </p>
 	 * <p>
-	 * The method looks for a field name that matches one of the following 
-	 * rules:
-	 * </p>
-	 * <ul>
-	 * <li>Field name equals <code>instance</code></li>
-	 * <li>Field name equals <code>reference</code></li>
-	 * <li>Field name starts with <code>ini</code></li>
-	 * <li>Field name starts with <code>ref</code></li>
-	 * </ul>
-	 * <p>
-	 * Note that field names are checked in case insensitive manner.
-	 * </p>
+	 * The method looks for a field that is static and has either the same type
+	 * as the class it is defined in or is of type {@link WeakReference}.
 	 * <p>
 	 * If multiple fields match the given name an {@link InjectionException}
 	 * will be thrown indicating the ambiguity found. If no matching field could
@@ -254,19 +288,37 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 		int count = 0;
 		for (CtField field : cc.getDeclaredFields())
 		{
-			String fieldName = field.getName().toLowerCase();
-			if (fieldName.equals("instance") || fieldName.startsWith("ini")
-					|| fieldName.equals("reference") || fieldName.startsWith("ref"))
+			// the field holding the singleton reference is obviously a static
+			// field.
+			if ( Modifier.isStatic(field.getModifiers()) )
 			{
-				LOGGER.log(Level.FINE, "found singleton field to inject: {0}",
-						new Object[] { fieldName });
-				count++;
-				if (count > 1)
-					throw new InjectionException(
-							"Multiple fields found that could be appropriate for injection!");
+				CtClass retType = field.getType();
+				// the type of the field has to either match the class name
+				// or WeakReference
+				if (retType.getName().equals(cc.getName()) 
+						|| retType.getName().equals("java.lang.ref.WeakReference"));
+				{
+					LOGGER.log(Level.INFO, "found singleton field to inject: {0}",
+							new Object[] { field.getName() });
 				
-				this.injectIntoSingletonField(cc, field);
+					count++;
+					if (count > 1)
+						throw new InjectionException(
+								"Multiple fields found that could be appropriate for injection!");
+					
+					this.injectIntoSingletonField(cc, field);
+				}
 			}
+		}
+		
+		// no static field available so call the injection method without a 
+		// field. It uses the field just to delete it and replace it with its
+		// own version
+		if (count == 0)
+		{
+			LOGGER.log(Level.WARNING, "No static field found in {0} that could hold the singleton. Adding an appropriate field instead",
+					new Object[] { cc.getName() });
+			this.injectIntoSingletonField(cc, null);
 		}
 	}
 	
@@ -327,7 +379,6 @@ public class InjectionLoaderStrategyDecorator implements IClassLoaderStrategy
 		}
 		
 		// add a new version of the singletons getInstance() method to the class
-		
 		StringBuilder sb = new StringBuilder();
 		sb.append("public static "+cc.getName()+" getInstance() {\n");
 		sb.append("if (REFERENCE == null) {\n");
