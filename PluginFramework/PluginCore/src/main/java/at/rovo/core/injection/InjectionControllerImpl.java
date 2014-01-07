@@ -197,12 +197,12 @@ public enum InjectionControllerImpl implements IInjectionController
 		
 		if (isSleeping)
 		{
-//			synchronized(this.cleanUpThread)
-//			{
-//				this.cleanUpThread.notify();
-//			}
+			synchronized(this.cleanUpThread)
+			{
+				this.cleanUpThread.notify();
+			}
 			// let the clean up thread finish gracefully
-//			noReferenceToMonitorAvailable.signal();
+			noReferenceToMonitorAvailable.signal();
 		}
 	}
 	
