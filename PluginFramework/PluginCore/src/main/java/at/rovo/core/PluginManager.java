@@ -366,6 +366,10 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			jarFile.close();
 			
 			pluginClass = attributes.getValue("Plugin-Class").trim();
+			// TODO: extract "export" and "dependency" fields from jar file
+			// export will put a class into the commons layer
+			// while "dependency" will check if a class is available in the 
+			// commons layer
 			attributes = null;
 			
 			if (pluginClass == null)

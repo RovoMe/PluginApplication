@@ -1,11 +1,14 @@
 package at.rovo.core.classloader;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import at.rovo.core.util.IteratorEnumeration;
 import at.rovo.plugin.PluginException;
 
 /**
@@ -27,16 +30,19 @@ import at.rovo.plugin.PluginException;
  * </p>
  * 
  * @param <T>
+ *            The type of class the classloader will return
  * @author Roman Vottner
  * @version 0.1
  */
-public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderStrategy
+public class StrategyClassLoader<T> extends ClassLoader
+// implements IClassLoaderStrategy
 {
 	/** The logger of this class **/
-	private static Logger logger = Logger.getLogger(StrategyClassLoader.class.getName());
+	private static Logger LOGGER = Logger.getLogger(StrategyClassLoader.class
+			.getName());
 	/** The registered strategies for this class loader **/
 	private Set<IClassLoaderStrategy> strategies = null;
-	
+
 	/**
 	 * <p>
 	 * Creates a new instance of this class loader which is a child of the class
@@ -46,9 +52,10 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	 */
 	public StrategyClassLoader()
 	{
-		this(StrategyClassLoader.class.getClassLoader(), new HashSet<IClassLoaderStrategy>());
+		this(StrategyClassLoader.class.getClassLoader(),
+				new HashSet<IClassLoaderStrategy>());
 	}
-	
+
 	/**
 	 * <p>
 	 * Creates a new instance of this class loader which is a child of the class
@@ -63,7 +70,7 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	{
 		this(StrategyClassLoader.class.getClassLoader(), strategies);
 	}
-	
+
 	/**
 	 * <p>
 	 * Creates a new instance of this class loader which is a child of the
@@ -79,7 +86,7 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	{
 		this(parent, new HashSet<IClassLoaderStrategy>());
 	}
-	
+
 	/**
 	 * <p>
 	 * Creates a new instance of this class loader which is a child of the
@@ -92,12 +99,13 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	 * @param strategies
 	 *            The strategies to use for class loading
 	 */
-	public StrategyClassLoader(ClassLoader parent, Set<IClassLoaderStrategy> strategies )
+	public StrategyClassLoader(ClassLoader parent,
+			Set<IClassLoaderStrategy> strategies)
 	{
 		super(parent);
 		this.strategies = strategies;
 	}
-	
+
 	/**
 	 * <p>
 	 * Adds a strategy to the set of used strategies for loading classes.
@@ -110,7 +118,7 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	{
 		this.strategies.add(strategy);
 	}
-	
+
 	/**
 	 * <p>
 	 * Returns all registered strategies for this class loader as a {@link Set}.
@@ -122,39 +130,69 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	{
 		return strategies;
 	}
-	
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public Class<T> loadClass(String name)
 	{
-		try 
+		try
 		{
 			return (Class<T>) super.loadClass(name);
-		} 
-		catch (ClassNotFoundException e) 
+		}
+		catch (ClassNotFoundException e)
 		{
-			logger.log(Level.SEVERE, "Could not find class: {0}", new Object[] {name});
-			throw new PluginException("StrategyClassLoader.loadClass("+name+"): "+e.getLocalizedMessage());
+			LOGGER.log(Level.SEVERE, "Could not find class: {0}",
+					new Object[] { name });
+			throw new PluginException("StrategyClassLoader.loadClass(" + name
+					+ "): " + e.getLocalizedMessage());
 		}
 	}
-	
+
 	@Override
-	protected Class<?> findClass(String className) throws ClassNotFoundException
+	protected Class<?> findClass(String className)
+			throws ClassNotFoundException
 	{
 		// propagate the call to the registered strategies
-		byte[] classBytes = this.findClassBytes(className);
-		if (classBytes != null)
+		try
 		{
-			logger.log(Level.FINE, "found bytes for class {0} - defining class", new Object[] {className});
-			// at least one strategy was able to find bytes for this class
-			// so create the class based on the found bytes
-			return defineClass(className, classBytes, 0, classBytes.length);
+			byte[] classBytes = this.findClassBytes(className);
+			if (classBytes != null)
+			{
+				LOGGER.log(Level.FINE,
+						"found bytes for class {0} - defining class",
+						new Object[] { className });
+				// at least one strategy was able to find bytes for this class
+				// so create the class based on the found bytes
+				return defineClass(className, classBytes, 0, classBytes.length);
+			}
+		}
+		catch (IOException ioEx)
+		{
+			throw new ClassNotFoundException("Error while loading class "
+					+ className + "! The following error occurred: "
+					+ ioEx.getLocalizedMessage());
 		}
 		return null;
 	}
 
-	@Override
-	public byte[] findClassBytes(String className)
+	/**
+	 * <p>
+	 * Finds the bytes of a class to load by propagating the request to the
+	 * contained strategies. It iterates through all strategies until a strategy
+	 * is able to find the bytes. If none is able to return the bytes null will
+	 * be returned.
+	 * </p>
+	 * 
+	 * @param className
+	 *            The fully qualified name of the class whose bytes should be
+	 *            returned
+	 * @return The bytes found for the class or null if no strategy was able to
+	 *         deliver the bytes
+	 * @throws IOException
+	 *             If during the loading of the class files a strategy noticed
+	 *             an error
+	 */
+	private byte[] findClassBytes(String className) throws IOException
 	{
 		// propagate the task to the strategies
 		byte[] classBytes = null;
@@ -168,44 +206,108 @@ public class StrategyClassLoader<T> extends ClassLoader implements IClassLoaderS
 	}
 
 	@Override
-	public URL findResourceURL(String resourceName)
+	public URL findResource(String resourceName)
 	{
-		// propagate the task to the strategies
-		URL resource = null;
-		for (IClassLoaderStrategy strategy : this.strategies)
+		try
 		{
-			resource = strategy.findResourceURL(resourceName);
-			if (resource != null)
-				return resource;
+			// propagate the task to the strategies
+			URL resource = null;
+			for (IClassLoaderStrategy strategy : this.strategies)
+			{
+				resource = strategy.findResource(resourceName);
+				if (resource != null)
+					return resource;
+			}
+			return resource;
 		}
-		return resource;
+		catch (Exception e)
+		{
+			LOGGER.log(Level.WARNING,
+					"Could not find resource with name {0} in classpath",
+					new Object[] { resourceName });
+			return null;
+		}
 	}
 
 	@Override
-	public Enumeration<URL> findResourcesEnum(String resourceName)
+	public Enumeration<URL> findResources(String resourceName)
+			throws IOException
 	{
 		// propagate the task to the strategies
-		Enumeration<URL> enumerationEnum = null;
+		Set<URL> foundItems = new HashSet<>();
 		for (IClassLoaderStrategy strategy : this.strategies)
 		{
-			enumerationEnum = strategy.findResourcesEnum(resourceName);
-			if (enumerationEnum != null)
-				return enumerationEnum;
+			try
+			{
+				Enumeration<URL> enumerationEnum = strategy
+						.findResources(resourceName);
+				if (enumerationEnum != null)
+				{
+					while (enumerationEnum.hasMoreElements())
+					{
+						URL url = enumerationEnum.nextElement();
+						foundItems.add(url);
+					}
+				}
+			}
+			catch (IOException e)
+			{
+				LOGGER.log(
+						Level.WARNING,
+						"Could not find resources with name {0} in classpath due to {1}",
+						new Object[] { resourceName, e.getLocalizedMessage() });
+			}
 		}
-		return enumerationEnum;
+		if (foundItems.isEmpty())
+			return null;
+
+		return new IteratorEnumeration<URL>(foundItems.iterator());
 	}
 
 	@Override
-	public String findLibraryPath(String libraryName)
+	protected String findLibrary(String libname)
 	{
 		// propagate the task to the strategies
-		String libPath = null;
+		String absolutPath = null;
 		for (IClassLoaderStrategy strategy : this.strategies)
 		{
-			libPath = strategy.findLibraryPath(libraryName);
-			if (libPath != null)
-				return libPath;
+			String path = strategy.findLibraryPath(libname);
+			if (path != null)
+				return path;
 		}
-		return libPath;
+		return absolutPath;
+	}
+
+	/**
+	 * <p>
+	 * Returns an {@link InputStream} to the resource rather than returning the
+	 * whole object.
+	 * </p>
+	 * <p>
+	 * This method is preferably if the resource to load is larger as the memory
+	 * consumption will be drastically lower than on loading the whole file at
+	 * once. However the file is locked as long as the InputStream is not
+	 * closed.
+	 * </p>
+	 * 
+	 * @param resourceName
+	 *            The resource to create an InputStream for
+	 * @return The InputStream for the resource
+	 * 
+	 * @throws IOException
+	 *             If during loading a resource an exception occurred
+	 */
+	protected InputStream findResourceAsStream(String resourceName)
+			throws IOException
+	{
+		// propagate the task to the strategies
+		InputStream stream = null;
+		for (IClassLoaderStrategy strategy : this.strategies)
+		{
+			stream = strategy.findResourceAsStream(resourceName);
+			if (stream != null)
+				return stream;
+		}
+		return stream;
 	}
 }

@@ -12,6 +12,7 @@ import at.rovo.core.classloader.InjectionLoaderStrategyDecorator;
 import at.rovo.core.classloader.PluginLoaderStrategy;
 import at.rovo.core.classloader.StrategyClassLoader;
 import at.rovo.core.injection.InjectionControllerImpl;
+import at.rovo.core.util.ClassFinder;
 import at.rovo.plugin.IPlugin;
 import at.rovo.plugin.PluginException;
 

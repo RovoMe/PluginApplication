@@ -20,7 +20,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import at.rovo.core.ClassFinder;
+import at.rovo.core.util.ClassFinder;
 import at.rovo.plugin.InjectionException;
 import at.rovo.annotations.Component;
 import at.rovo.annotations.ComponentId;
@@ -471,7 +471,8 @@ public enum InjectionControllerImpl implements IInjectionController
 					// As interfaces can't be instantiated we have to find some
 					// implementations of this interface
 					List<Class<?>> implementingClasses = 
-							ClassFinder.INSTANCE.findImplementingClasses(toInject, 
+							ClassFinder.getInstance().
+								findImplementingClasses(toInject, 
 									obj.getClass().getClassLoader());
 				
 					// If no implementations could be found, raise an error

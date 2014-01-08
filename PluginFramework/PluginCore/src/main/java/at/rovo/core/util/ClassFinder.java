@@ -1,7 +1,8 @@
-package at.rovo.core;
+package at.rovo.core.util;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -40,10 +41,10 @@ import java.util.jar.JarFile;
  * @author Roman Vottner
  * @version 0.1
  */
-public enum ClassFinder
+public final class ClassFinder
 {
-	/** Application of the enum singleton pattern **/
-	INSTANCE;
+	/** Application of the WeakSingleton pattern **/
+	private static WeakReference<ClassFinder> REFERENCE;
 	
 	/** A set of directories to look for classes **/
 	private Set<String> directories;
@@ -54,7 +55,8 @@ public enum ClassFinder
 	{
 		this.directories = new HashSet<>();
 		this.jarFiles = new HashSet<>();
-		StringTokenizer tokenizer = new StringTokenizer(System.getProperty("java.class.path"), ";");
+		StringTokenizer tokenizer = 
+				new StringTokenizer(System.getProperty("java.class.path"), ";");
 		while (tokenizer.hasMoreTokens())
 		{
 			String path = tokenizer.nextToken();
@@ -62,6 +64,43 @@ public enum ClassFinder
 				this.jarFiles.add(path);
 			else
 				this.directories.add(path);
+		}
+	}
+	
+	/**
+	 * <p>
+	 * Returns a new instance of the the class finder if none existed.
+	 * </p>
+	 * <p>
+	 * This singleton method uses WeakReferences to enable unloading of the 
+	 * singleton if no strong reference is pointing to the singleton.
+	 * </p>
+	 * 
+	 * @return The sole instance of the class finder
+	 */
+	public final static ClassFinder getInstance()
+	{
+		if (REFERENCE == null)
+		{
+			synchronized (ClassFinder.class)
+			{
+				if (REFERENCE == null)
+				{
+					ClassFinder instance = new ClassFinder();
+					REFERENCE = new WeakReference<>(instance);
+					return instance;
+				}
+			}
+		}
+		ClassFinder instance = REFERENCE.get();
+		if (instance != null)
+			return instance;
+		
+		synchronized (ClassFinder.class)
+		{
+			instance = new ClassFinder();
+			REFERENCE = new WeakReference<>(instance);
+			return instance;
 		}
 	}
 	
@@ -241,11 +280,37 @@ public enum ClassFinder
 	 *            class files
 	 * @return A {@link List} of found class files within the directory
 	 */
-    public List<File> findClassFilesInDirectory(File dir, boolean includeSubDir)
+    public static final List<File> findClassFilesInDirectory(File dir, 
+    		boolean includeSubDir)
+    {
+    	return findFileInDirectory(dir, ".class", includeSubDir);
+    }
+    
+	/**
+	 * <p>
+	 * Finds class files in a specified directory and adds them to a
+	 * {@link List} of found classes.
+	 * </p>
+	 * <p>
+	 * If <em>includeSubDir</em> is set to true this method will traverse
+	 * through sub directories.
+	 * </p>
+	 * 
+	 * @param dir
+	 *            The directory to look for .class files
+	 *  @param fileName
+	 *            The name of the file to look for
+	 * @param includeSubDir
+	 *            true if sub directories should be traversed in order to find
+	 *            class files
+	 * @return A {@link List} of found class files within the directory
+	 */
+    public static final List<File> findFileInDirectory(File dir, String fileName,
+    		boolean includeSubDir)
     {
         List<File> classFiles = new ArrayList<>();
         if (dir.isDirectory())
-            this.traverseDirectory(dir, classFiles, includeSubDir);
+            traverseDirectory(dir, classFiles, fileName, includeSubDir);
         return classFiles;
     }
     
@@ -263,17 +328,20 @@ public enum ClassFinder
 	 *            The directory to add .class files to <em>classFiles</em>
 	 * @param classFiles
 	 *            A {@link List} of found .class files within the directory
+	 * @param fileName
+	 *            The name of the file to look for
 	 * @param includeSubDir
 	 *            true if sub directories should be traversed in order to find
 	 *            class files
 	 */
-    private void traverseDirectory(File directory, List<File> classFiles, boolean includeSubDir)
+    private static void traverseDirectory(File directory, List<File> classFiles, 
+    		String fileName, boolean includeSubDir)
     {
         for (File file : directory.listFiles())
         {
             if (file.isDirectory() && includeSubDir)
-                traverseDirectory(file, classFiles, includeSubDir);
-            else if (file.getName().endsWith(".class"))
+                traverseDirectory(file, classFiles, fileName, includeSubDir);
+            else if (file.getName().endsWith(fileName))
                 classFiles.add(file);
         }
     }
@@ -319,6 +387,74 @@ public enum ClassFinder
 				return null;
 			}
 			return foundClasses;
+		}
+		return null;
+	}
+	
+	/**
+	 * <p>
+	 * Returns a list of all entries of a jar file as Strings. The entries in
+	 * the returned list will contain the absolute paths inside the jar-archive.
+	 * </p>
+	 * 
+	 * @param file
+	 *            The jar file to scan for contained files
+	 * 
+	 * @return A list of file names found inside the jar archive
+	 */
+	public static List<String> scanJarFileForAllFiles(File file)
+	{
+		return scanJarFileForFiles(file, null);
+	}
+	
+	/**
+	 * <p>
+	 * Returns a list of all entries in a jar file that match the file name as
+	 * String. The entries in the returned list will contain the absolute paths
+	 * inside the jar-archive.
+	 * </p>
+	 * <p>
+	 * Note that the comparison uses the {@link String#endsWith(String)} method
+	 * for comparison.
+	 * </p>
+	 * 
+	 * @param file
+	 *            The jar file to scan for contained files
+	 * @param fileName
+	 *            The name of the files that should be returned in the list.
+	 * @return The list containing the absolute paths of the files inside the
+	 *         jar that match the given file name
+	 */
+	public static List<String> scanJarFileForFiles(File file, String fileName)
+	{
+		if (file == null || !file.exists())
+			return null;
+		if (file.getName().endsWith(".jar"))
+		{
+			List<String> foundFiles = new ArrayList<String>();
+			try (JarFile jarFile = new JarFile(file))
+			{
+				Enumeration<JarEntry> entries = jarFile.entries();
+				while (entries.hasMoreElements())
+				{
+					JarEntry entry = entries.nextElement();
+					if (fileName != null && entry.getName().endsWith(fileName))
+					{
+						String name = entry.getName();
+						foundFiles.add(name);
+					}
+					else if (fileName == null)
+					{
+						foundFiles.add(entry.getName());
+					}
+				}
+			}
+			catch (IOException ex)
+			{
+				ex.printStackTrace();
+				return null;
+			}
+			return foundFiles;
 		}
 		return null;
 	}
