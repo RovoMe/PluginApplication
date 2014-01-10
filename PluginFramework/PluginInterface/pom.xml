@@ -3,7 +3,7 @@
   <parent>
     <groupId>at.rovo.plugin</groupId>
     <artifactId>PluginFramework</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0</version>
   </parent>
  
   <groupId>at.rovo.plugin.interface</groupId>

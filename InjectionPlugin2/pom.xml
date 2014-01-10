@@ -2,19 +2,19 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>at.rovo.plugin.InjectionPlugin2</groupId>
   <artifactId>InjectionPlugin2</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>1.0.0</version>
   <name>Injection Plugin2</name>
   
   <dependencies>
     <dependency>
       <groupId>at.rovo.plugin.interface</groupId>
       <artifactId>PluginInterface</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
+      <version>1.0.0</version>
     </dependency>
     <dependency>
       <groupId>at.rovo.plugin.injectionPlugin</groupId>
       <artifactId>InjectionPlugin</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
+      <version>1.0.0</version>
     </dependency>
   </dependencies>
   

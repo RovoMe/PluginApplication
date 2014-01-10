@@ -1,58 +1,106 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
 
-  <groupId>at.rovo.plugin</groupId>
-  <artifactId>PluginFramework</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
-  <packaging>pom</packaging>
+	<groupId>at.rovo.plugin</groupId>
+	<artifactId>PluginFramework</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
 
-  <name>Plugin Framework</name>
-  <url>https://github.com/RovoMe/PluginApplication</url>
-  
-  <description>A simple application which enables hot deployment of plugins and basic dependency injection into fields annotated with @Inject for @Component annotated classes.
+	<name>Plugin Framework</name>
+	<url>https://github.com/RovoMe/PluginApplication</url>
+
+	<description>A simple application which enables hot deployment of plugins and basic dependency injection into fields annotated with @Inject for @Component annotated classes.
 
 Every plugin is loaded by a new class loader to enable dynamically un- and reloading of plug-ins. 
 
 Moreover the application is able to handle singletons appropriately in that they are kept in an own classloader which is the parent class loader of the non-singleton classes of a plugin.
 
 This all is achieved without any locks kept on jar files or extracting the content of a jar file to a temporary directory. So automatic unloading of a plugin on removing the plugin from the plugin directory is enabled</description>
-  
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
+	<scm>
+		<connection>scm:git:gith@github.com:RovoMe/PluginApplication.git</connection>
+		<url>scm:git:git@github.com:RovoMe/PluginApplication.git</url>
+		<developerConnection>scm:git:git@github.com:RovoMe/PluginApplication.git</developerConnection>
+	</scm>
 
-  <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>3.8.1</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
-  
-  <build>
-    <plugins>
-      <!-- compiler settings -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>2.5</version>
-        <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
-          <showDeprecation>true</showDeprecation>
-          <showWarnings>true</showWarnings>
-          <optimize>true</optimize>
-        </configuration>
-      </plugin>			  
-    </plugins>
-  </build>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<junit.version>4.11</junit.version>
+	</properties>
 
-  <modules>
-    <module>PluginInterface</module>
-    <module>PluginCore</module>
-  </modules>
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<!-- compiler settings -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>2.5</version>
+				<configuration>
+					<source>1.7</source>
+					<target>1.7</target>
+					<showDeprecation>true</showDeprecation>
+					<showWarnings>true</showWarnings>
+					<optimize>true</optimize>
+				</configuration>
+			</plugin>
+			<!-- allows 'mvn release:prepare' prepares the project to update 
+			from 1.0-SNAPSHOT to 1.0 and afterwards increments the dev-version 
+			to 1.1-SNAPSHOT. 'mvn release:perform' exports the newly created
+			tag, builds the project and deploys the artifact. 
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>2.4.2</version>
+			</plugin>
+			<!-- automatically tag upon successful deploy -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-scm-plugin</artifactId>
+				<dependencies>
+					<dependency>
+						<groupId>org.codehaus.plexus</groupId>
+						<artifactId>plexus-utils</artifactId>
+						<version>2.1</version>
+					</dependency>
+					<dependency>
+						<groupId>org.apache.maven.scm</groupId>
+						<artifactId>maven-scm-provider-gitexe</artifactId>
+						<version>1.2</version>
+					</dependency>
+				</dependencies>
+				<version>1.0</version>
+				<configuration>
+					<tag>${project.version}</tag>
+					<connectionType>connection</connectionType>
+				</configuration>
+				<executions>
+					<execution>
+						<id>tag</id>
+						<phase>deploy</phase>
+						<goals>
+							<goal>tag</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<modules>
+		<module>PluginInterface</module>
+		<module>PluginCore</module>
+	</modules>
 
 </project>

@@ -310,4 +310,9 @@ public class StrategyClassLoader<T> extends ClassLoader
 		}
 		return stream;
 	}
+	
+	public Class<?> hasLoadedClass(String className)
+	{
+		return this.findLoadedClass(className);
+	}
 }

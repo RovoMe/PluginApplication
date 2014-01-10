@@ -1,3 +1,12 @@
 Manifest-Version: 1.0
+Class-Path: PluginInterface-1.0.0.jar
+Export: at.rovo.plugin.injection.D at.rovo.plugin.injection.C
 Plugin-Class: at.rovo.plugin.injection.ControllerWithInjections
-Created-By: Roman Vottner
+
+Name: at/rovo/plugin/
+Specification-Title: Plugin Definition Essentials
+Specification-Version: 1.0
+Specification-Vendor: Roman Vottner
+Implementation-Title: at.rovo.plugin.injection
+Implementation-Version: 0.0.1-SNAPSHOT
+Implementation-Vendor: Roman Vottner

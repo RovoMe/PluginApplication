@@ -93,7 +93,7 @@ public final class DelegationClassLoader<T> extends ClassLoader
 	 * @param strategies The strategy for the class loader to be set
 	 * @return A strong reference to the class loader created
 	 */
-	public ClassLoader createLoaderForName(String name, Set<IClassLoaderStrategy> strategies)
+	public StrategyClassLoader<T> createLoaderForName(String name, Set<IClassLoaderStrategy> strategies)
 	{
 		StrategyClassLoader<T> loader = new StrategyClassLoader<>(this, strategies);
 		WeakReference<StrategyClassLoader<T>> ref = new WeakReference<>(loader);
@@ -161,7 +161,7 @@ public final class DelegationClassLoader<T> extends ClassLoader
 	
 	@Override
 	protected Class<?> findClass(String className) throws ClassNotFoundException
-	{
+	{		
 		// propagate the call to the registered strategies
 		List<String> removeLoader = new ArrayList<>();
 		Class<?> foundClass = null;
@@ -174,6 +174,7 @@ public final class DelegationClassLoader<T> extends ClassLoader
 			{
 				try
 				{
+					
 					Class<?> _foundClass = loader.findClass(className);
 					
 					if (_foundClass != null)

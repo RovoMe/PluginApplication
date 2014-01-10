@@ -54,8 +54,6 @@ public class InjectionPluginManager extends PluginManager
 			Logger.getLogger(InjectionPluginManager.class.getName());
 	/** The reference to the one and only instance of the InjectionPluginManager **/
 	private static InjectionPluginManager instance = null;
-	/** The class loader which holds the singleton components **/
-	private StrategyClassLoader<IPlugin> singletonClassLoader = null;
 	/** The decorator for the plug-in loader **/
 	private InjectionLoaderStrategyDecorator injectionStrategy = null;
 	/** The strategy pattern for loading plug-ins **/
@@ -68,14 +66,10 @@ public class InjectionPluginManager extends PluginManager
 	{
 		super();
 		
-		// create the class loader which will hold the singleton class definitions and 
-		// therefore be responsible for their creation 
-		this.singletonClassLoader = new StrategyClassLoader<>(this.getClass().getClassLoader());
 		// set the strategy to load plugins with the singleton class loader
 		// and decorate the strategy with an injection mechanism
 		this.pluginStrategy = new PluginLoaderStrategy();
 		this.injectionStrategy = new InjectionLoaderStrategyDecorator(this.pluginStrategy);
-		this.singletonClassLoader.addStrategy(this.injectionStrategy);
 	}
 	
 	/**
@@ -108,14 +102,20 @@ public class InjectionPluginManager extends PluginManager
 					
 			// set the strategy for loading plug-ins
 			Set<IClassLoaderStrategy> strategy = new LinkedHashSet<>();
-			PluginLoaderStrategy pluginStrategy = new PluginLoaderStrategy(fileURL);
+			PluginLoaderStrategy pluginStrategy = 
+					new PluginLoaderStrategy(fileURL);
+			
 			// decorate the strategy to insert new code into the class bytes
-			InjectionLoaderStrategyDecorator injectionStrategy = new InjectionLoaderStrategyDecorator(pluginStrategy);
+			InjectionLoaderStrategyDecorator injectionStrategy = 
+					new InjectionLoaderStrategyDecorator(pluginStrategy);
 			strategy.add(injectionStrategy);
 			injectionStrategy.setJarFile(jarFile);
+			
+			this.loadExportedClasses(meta, strategy);
 					
 			// create a new class loader for this plug-in
-			StrategyClassLoader<IPlugin> pluginLoader = new StrategyClassLoader<>(this.singletonClassLoader, strategy);
+			StrategyClassLoader<IPlugin> pluginLoader = 
+					new StrategyClassLoader<>(this.commonClassLoader, strategy);
 			
 			// load all classes for this plug-in with our new class loader
 			Class<IPlugin> plugin = null;
@@ -185,7 +185,12 @@ public class InjectionPluginManager extends PluginManager
 			}
 			if (injector != null)
 			{
-				if (injector.isSingleton(pluginName))
+				// TODO: singleton instantiation is done by InjectionControllerImpl - here we should check if the class is marked as export or not
+				// The delegation mechanism should automatically detect non-exported dependency required by exported classes, which are loaded with
+				// the commonClassLoader, even if the class to load is by a child loader
+//				if (injector.isSingleton(pluginName))
+				PluginMeta meta = this.pluginData.get(pluginName);
+				if (meta.isExported(pluginName))
 				{
 					// add the jar file to the strategy decorator so it is able to
 					// inject the invocation code for the IInjectionController
@@ -197,7 +202,7 @@ public class InjectionPluginManager extends PluginManager
 					URL cpBefore = this.pluginStrategy.getClassPath();
 					this.pluginStrategy.setClassPath(fileURL);
 					// load the class
-					result = this.singletonClassLoader.loadClass(pluginName);
+					result = this.commonClassLoader.loadClass(pluginName);
 					// and remove the added jar file to prevent following classes
 					// from being loaded by the singleton class loader
 					this.pluginStrategy.setClassPath(cpBefore);

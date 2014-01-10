@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.jar.JarException;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import at.rovo.core.classloader.DelegationClassLoader;
 import at.rovo.core.classloader.IClassLoaderStrategy;
 import at.rovo.core.classloader.PluginLoaderStrategy;
 import at.rovo.core.classloader.StrategyClassLoader;
@@ -77,6 +80,8 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	/** A set of currently registered listeners who want to be informed on
 	 * successful loads, unload or exceptions while loading plug-ins **/
 	protected Set<IPluginListener> listeners;
+	/** The class loader which holds the singleton components **/
+	protected DelegationClassLoader<IPlugin> commonClassLoader = null;
 	
 	/**
 	 * <p>
@@ -87,6 +92,9 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	{
 		this.pluginData = new HashMap<>();
 		this.listeners = new CopyOnWriteArraySet<>();
+		// create the class loader which will hold the exported and required
+		// class definitions and therefore be responsible for their creation 
+		this.commonClassLoader = new DelegationClassLoader<>(this.getClass().getClassLoader());
 	}
 		
 	/**
@@ -366,15 +374,21 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			jarFile.close();
 			
 			pluginClass = attributes.getValue("Plugin-Class").trim();
-			// TODO: extract "export" and "dependency" fields from jar file
-			// export will put a class into the commons layer
-			// while "dependency" will check if a class is available in the 
-			// commons layer
+			// parse the as exported marked classes - a class marked as export
+			// will be put into the common classloader
+			String rawExportedClasses = attributes.getValue("Export");
+			List<String> export = this.parseClassSet(rawExportedClasses);
+			// parse the as required marked classes - before loading any class 
+			// of the plugin it will be checked if the required classes are
+			// available
+			String rawRequiredClasses = attributes.getValue("Requires");
+			List<String> required = this.parseClassSet(rawRequiredClasses);
+
 			attributes = null;
 			
 			if (pluginClass == null)
 				throw new JarException("Missing entry \"Plugin-Class:\" inside the MANIFEST.MF-file");
-			this.reloadPlugin(file, pluginClass);
+			this.reloadPlugin(file, pluginClass, export, required);
 		}
 		catch (IOException e)
 		{
@@ -404,7 +418,8 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	 * @param jarFile
 	 * @param pluginName
 	 */
-	protected void reloadPlugin(File jarFile, String pluginName)
+	protected void reloadPlugin(File jarFile, String pluginName, 
+			List<String> exported, List<String> required)
 	{		
 		// if the plug-in was loaded before there has to be
 		// still a valid PluginMeta-instance for this plug-in,
@@ -416,6 +431,8 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			meta = new PluginMeta();
 			meta.setPluginName(pluginName);
 			meta.setDeclaredClassName(pluginName);
+			meta.setExportedClassSet(exported);
+			meta.setRequiredClassSet(required);
 		}
 		try
 		{
@@ -448,13 +465,21 @@ public abstract class PluginManager implements IDirectoryChangeListener
 		PluginMeta meta = this.pluginData.get(pluginName);
 		try
 		{
+			// TODO: a check and routine needs to be implemented to deal with the required setting
 			URL fileURL = meta.getJarFileURL();
 
-			Set<IClassLoaderStrategy> strategy = new HashSet<IClassLoaderStrategy>();
+			Set<IClassLoaderStrategy> strategy = 
+					new HashSet<IClassLoaderStrategy>();
 			strategy.add(new PluginLoaderStrategy(fileURL));	
 			
+			// load classes that are marked as to export in the common 
+			// classloader
+			this.loadExportedClasses(meta, strategy);
+			
+			// load the rest of the plugin with the plugin's own respective 
+			// classloader which is a child of the commons class loader
 			StrategyClassLoader<IPlugin> pluginLoader = 
-					new StrategyClassLoader<>(this.getClass().getClassLoader(), strategy);
+					new StrategyClassLoader<>(this.commonClassLoader, strategy);
 
 			meta.setClassLoader(pluginLoader);
 				
@@ -621,6 +646,52 @@ public abstract class PluginManager implements IDirectoryChangeListener
 				return data.getDeclaredClassName();
 		}
 		return "";
+	}
+	
+	/**
+	 * <p>
+	 * Parses a set of classes which are separated by a blank and adds them to
+	 * the list which is then returned.
+	 * </p>
+	 * 
+	 * @param classes The string which contains the classes to split
+	 * @return The list containing the parsed classes
+	 */
+	private final List<String> parseClassSet(String classes)
+	{
+		if (classes == null)
+			return Collections.emptyList();
+		List<String> parsedClasses = new ArrayList<>();
+		String[] split = classes.trim().split("\\s");
+		for (String clazz : split)
+			if (!clazz.trim().equals(""))
+				parsedClasses.add(clazz);
+		return parsedClasses;
+	}
+	
+	/**
+	 * <p>
+	 * Add classes that are marked as export for the respective plugin to the
+	 * common classloader and adds a reference of the class file loaded to the
+	 * plugin's meta data.
+	 * </p>
+	 * 
+	 * @param meta
+	 *            The plugin's meta data which hold the information of the
+	 *            classes to load
+	 * @param strategy
+	 *            The strategy used on loading the required classes
+	 */
+	protected final void loadExportedClasses(PluginMeta meta,
+			Set<IClassLoaderStrategy> strategies)
+	{
+		for (String classToExport : meta.getExportedClasses())
+		{
+			StrategyClassLoader<?> loader = this.commonClassLoader
+					.createLoaderForName(classToExport, strategies);
+			Class<?> export = loader.loadClass(classToExport);
+			meta.addExpordedClass(classToExport, export);
+		}
 	}
 	
 	/**

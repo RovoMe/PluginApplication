@@ -2,6 +2,10 @@ package at.rovo.core;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import at.rovo.plugin.IPlugin;
 
 /**
@@ -28,6 +32,10 @@ public class PluginMeta
 	private Class<IPlugin> pluginClass = null;
 	/** The loaded and initialized plug-in **/
 	private IPlugin plugin = null;
+	/** Will hold a strong reference to the exported classes **/
+	private Map<String, Class<?>> exportedClasses = new HashMap<>();
+	/** Will hold a strong reference to the classes required by this plugin **/
+	private Map<String, Class<?>> requiredClasses = new HashMap<>();
 
 	/**
 	 * <p>
@@ -196,19 +204,20 @@ public class PluginMeta
 
 	/**
 	 * <p>
-	 * Sets the loaded and initialized plugin instance. The current meta 
-	 * instance will hold this plugin instance until an unload request is 
+	 * Sets the loaded and initialized plugin instance. The current meta
+	 * instance will hold this plugin instance until an unload request is
 	 * received. This way garbage collection of any object held by the plugin
 	 * will be prevented until the plugin is actually unloaded.
 	 * </p>
 	 * 
-	 * @param plugin The initialized plug-ins main class 
+	 * @param plugin
+	 *            The initialized plug-ins main class
 	 */
 	public void setPlugin(IPlugin plugin)
 	{
 		this.plugin = plugin;
 	}
-	
+
 	/**
 	 * <p>
 	 * Returns the plugins main object.
@@ -219,5 +228,117 @@ public class PluginMeta
 	public IPlugin getPlugin()
 	{
 		return this.plugin;
+	}
+
+	/**
+	 * <p>
+	 * Adds only the name of the as exported annotated class to the plugin meta
+	 * description.
+	 * </p>
+	 * 
+	 * @param export
+	 *            The set containing the classes which are marked as to export
+	 */
+	public void setExportedClassSet(List<String> export)
+	{
+		for (String name : export)
+			this.exportedClasses.put(name, null);
+	}
+
+	/**
+	 * <p>
+	 * Adds a class which marked as to export to this plugin metadata.
+	 * </p>
+	 * 
+	 * @param className
+	 *            The name of the exported class
+	 * @param clazz
+	 *            The class representation of the required class
+	 */
+	public void addExpordedClass(String className, Class<?> clazz)
+	{
+		this.exportedClasses.put(className, clazz);
+	}
+
+	/**
+	 * <p>
+	 * Returns true if the provided class name is among the exported classes.
+	 * </p>
+	 * 
+	 * @param classNameThe
+	 *            class name to check if it is exported
+	 * @return true if the provided classname equals an exported class
+	 */
+	public boolean isExported(String className)
+	{
+		return this.exportedClasses.containsKey(className);
+	}
+
+	/**
+	 * <p>
+	 * Returns the names of the exported classes by this plugin.
+	 * </p>
+	 * 
+	 * @return The names of the exported classes by this plugin
+	 */
+	public Set<String> getExportedClasses()
+	{
+		return this.exportedClasses.keySet();
+	}
+	
+	/**
+	 * <p>
+	 * Adds only the name of the as required annotated class to the plugin meta
+	 * description.
+	 * </p>
+	 * 
+	 * @param required
+	 *            The set containing the classes which are marked as to export
+	 */
+	public void setRequiredClassSet(List<String> required)
+	{
+		for (String name : required)
+			this.requiredClasses.put(name, null);
+	}
+	
+	/**
+	 * <p>
+	 * Adds a class which is required by this plugin to this metadata object.
+	 * </p>
+	 * 
+	 * @param className
+	 *            The name of the by this plugin required class
+	 * @param clazz
+	 *            The class which is required by this plugin
+	 */
+	public void addRequiredClass(String className, Class<?> clazz)
+	{
+		this.requiredClasses.put(className, clazz);
+	}
+
+	/**
+	 * <p>
+	 * Returns true if this plugin requires the class with the given class name.
+	 * </p>
+	 * 
+	 * @param className
+	 *            The class name to check if it is required
+	 * @return true if the provided class name is needed by this plugin
+	 */
+	public boolean isRequiredClasses(String className)
+	{
+		return this.requiredClasses.containsKey(className);
+	}
+	
+	/**
+	 * <p>
+	 * Returns all as required marked classes for this plugin.
+	 * </p>
+	 * 
+	 * @return The names of the required classes by this plugin
+	 */
+	public Set<String> getRequiredClasses()
+	{
+		return this.requiredClasses.keySet();
 	}
 }

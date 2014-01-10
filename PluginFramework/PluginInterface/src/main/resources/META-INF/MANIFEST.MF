@@ -1,0 +1,17 @@
+Manifest-Version: 1.0
+
+Name: at/rovo/plugin/
+Specification-Title: Plugin Definition Essentials
+Specification-Version: 1.0
+Specification-Vendor: Roman Vottner
+Implementation-Title: at.rovo.plugin.injection2
+Implementation-Version: 1.0
+Implementation-Vendor: Roman Vottner
+
+Name: at/rovo/annotations/
+Specification-Title: Plugin Annotations for Injection
+Specification-Version: 1.0
+Specification-Vendor: Roman Vottner
+Implementation-Title: at.rovo.plugin.injection2
+Implementation-Version: 1.0
+Implementation-Vendor: Roman Vottner
