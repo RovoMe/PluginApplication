@@ -363,6 +363,7 @@ public class PluginLoaderStrategy implements IClassLoaderStrategy
 		return new IteratorEnumeration<>(foundItems.iterator());
 	}
 
+	@SuppressWarnings("resource")
 	@Override
 	public InputStream findResourceAsStream(String resourceName)
 			throws IOException
@@ -408,26 +409,33 @@ public class PluginLoaderStrategy implements IClassLoaderStrategy
 					return stream;
 				}
 			}
-			finally
+			catch (IOException ioEx)
 			{
-				if (stream != null)
-				{
-					try
-					{
-						stream.close();
-					}
-					catch (IOException e)
-					{
-						LOGGER.log(Level.SEVERE, "Couldn't close the stream of {0}!", 
-								new Object[] { resourceName });
-						e.printStackTrace();
-					}
-				}
 				if (jarFile != null)
 				{
 					jarFile.close();
 				}
 			}
+//			finally
+//			{
+//				if (stream != null)
+//				{
+//					try
+//					{
+//						stream.close();
+//					}
+//					catch (IOException e)
+//					{
+//						LOGGER.log(Level.SEVERE, "Couldn't close the stream of {0}!", 
+//								new Object[] { resourceName });
+//						e.printStackTrace();
+//					}
+//				}
+//				if (jarFile != null)
+//				{
+//					jarFile.close();
+//				}
+//			}
 		}
 		throw new IOException("No classpath has been specified");
 	}

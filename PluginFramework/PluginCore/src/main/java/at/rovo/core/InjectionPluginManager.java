@@ -165,6 +165,7 @@ public class InjectionPluginManager extends PluginManager
 	 */
 	protected Class<?> loadPlugin(String pluginName, StrategyClassLoader<IPlugin> loader, URL fileURL)
 	{
+		logger.log(Level.INFO, "Trying to load {0}", new Object[] { pluginName });
 		try
 		{
 			// Check if the class to load is a singleton
@@ -190,7 +191,7 @@ public class InjectionPluginManager extends PluginManager
 				// the commonClassLoader, even if the class to load is by a child loader
 //				if (injector.isSingleton(pluginName))
 				PluginMeta meta = this.pluginData.get(pluginName);
-				if (meta.isExported(pluginName))
+				if (meta != null && meta.isExported(pluginName))
 				{
 					// add the jar file to the strategy decorator so it is able to
 					// inject the invocation code for the IInjectionController

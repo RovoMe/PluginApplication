@@ -378,11 +378,16 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			// will be put into the common classloader
 			String rawExportedClasses = attributes.getValue("Export");
 			List<String> export = this.parseClassSet(rawExportedClasses);
+			logger.log(Level.INFO, "Found classes to export {0} inside jar {1}", 
+					new Object[] { export, file });
+			
 			// parse the as required marked classes - before loading any class 
 			// of the plugin it will be checked if the required classes are
 			// available
 			String rawRequiredClasses = attributes.getValue("Requires");
 			List<String> required = this.parseClassSet(rawRequiredClasses);
+			logger.log(Level.INFO, "Found required classes for {0}: {1}", 
+					new Object[] { file, required });
 
 			attributes = null;
 			
@@ -691,6 +696,8 @@ public abstract class PluginManager implements IDirectoryChangeListener
 					.createLoaderForName(classToExport, strategies);
 			Class<?> export = loader.loadClass(classToExport);
 			meta.addExpordedClass(classToExport, export);
+			logger.log(Level.INFO, "Loading exported class: {0}", 
+					new Object[] { classToExport });
 		}
 	}
 	

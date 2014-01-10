@@ -153,6 +153,10 @@ public class StrategyClassLoader<T> extends ClassLoader
 			throws ClassNotFoundException
 	{
 		// propagate the call to the registered strategies
+		Class<?> foundClass = this.findLoadedClass(className);
+		if (foundClass != null)
+			return foundClass;
+		
 		try
 		{
 			byte[] classBytes = this.findClassBytes(className);
