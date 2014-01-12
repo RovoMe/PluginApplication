@@ -572,11 +572,22 @@ public abstract class PluginManager implements IDirectoryChangeListener
 		PluginMeta meta = this.pluginData.get(name);
 		if (meta != null)
 		{
+			try
+			{
+			meta.removeExportedClasses();
+			meta.removeRequiredClasses();
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
+			}
+			
 			// on removing the plugin instance all objects held by this instance
 			// will lose their strong reference and will be eligible for garbage
 			// collection. Singleton instances however may prevent the the clean
 			// up step as they keep a strong reference to themselves.
 			meta.setPlugin(null);
+			
 			// the class loader is only removed if all initialized objects 
 			// defined by the plugin are unloaded. If a further plugin 
 			// references any class of this plugin the classloader can't be
@@ -584,12 +595,11 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			// lost
 			meta.setClassLoader(null);
 			meta.setClassObj(null);
-			meta.setExportedClassSet(null);
-			meta.setRequiredClassSet(null);
+			
+			this.pluginData.remove(name);
 			
 			for (IPluginListener listener : this.listeners)
 				listener.pluginRemoved(name);
-			this.pluginData.remove(name);
 		}
 		else
 			throw new PluginException("Couldn't find registered plugin: "+name);

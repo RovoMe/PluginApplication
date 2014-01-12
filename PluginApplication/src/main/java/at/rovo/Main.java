@@ -2,11 +2,15 @@ package at.rovo;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.net.URL;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import at.rovo.console.Console;
+import at.rovo.console.command.ConsoleCommand;
 import at.rovo.console.command.ExecuteCommand;
+import at.rovo.console.command.GarbageCollectionCommand;
 import at.rovo.console.command.ListCommand;
 import at.rovo.console.command.LoadCommand;
 import at.rovo.console.command.UnloadCommand;
@@ -41,8 +45,11 @@ public class Main implements IPluginListener
 	 * </p>
 	 */
 	public Main(String pluginDir)
-	{				
-		File propFile = new File(this.getClass().getResource("/application.properties").getPath());
+	{			
+		URL url = getClass().getResource("/application.properties");
+		String file = url.getFile().replace("%20", " ");
+		File propFile = new File(file);
+		
 		Properties prop = new Properties();
 		try 
 		{	
@@ -68,6 +75,7 @@ public class Main implements IPluginListener
 			new LoadCommand(manager);
 			new UnloadCommand(manager);
 			new ExecuteCommand(manager);
+			new GarbageCollectionCommand(manager);
 			
 			logger.log(Level.INFO, "Application initialized");
 			

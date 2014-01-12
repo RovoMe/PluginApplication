@@ -2,10 +2,13 @@ package at.rovo.core;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import at.rovo.plugin.IPlugin;
 
 /**
@@ -241,6 +244,9 @@ public class PluginMeta
 	 */
 	public void setExportedClassSet(List<String> export)
 	{
+		if (this.exportedClasses == null)
+			this.exportedClasses = new HashMap<>();
+			
 		for (String name : export)
 			this.exportedClasses.put(name, null);
 	}
@@ -257,6 +263,8 @@ public class PluginMeta
 	 */
 	public void addExpordedClass(String className, Class<?> clazz)
 	{
+		if (this.exportedClasses == null)
+			this.exportedClasses = new HashMap<>();
 		this.exportedClasses.put(className, clazz);
 	}
 
@@ -271,7 +279,9 @@ public class PluginMeta
 	 */
 	public boolean isExported(String className)
 	{
-		return this.exportedClasses.containsKey(className);
+		if (this.exportedClasses != null)
+			return this.exportedClasses.containsKey(className);
+		return false;
 	}
 
 	/**
@@ -283,7 +293,26 @@ public class PluginMeta
 	 */
 	public Set<String> getExportedClasses()
 	{
-		return this.exportedClasses.keySet();
+		if (this.exportedClasses != null)
+			return this.exportedClasses.keySet();
+		return Collections.emptySet();
+	}
+	
+	/**
+	 * <p>
+	 * Removes all references to classes marked as to export.
+	 * </p>
+	 */
+	public void removeExportedClasses()
+	{
+		if (this.exportedClasses != null)
+		{
+			Set<String> classNames = new HashSet<>(this.exportedClasses.keySet());
+			for (String className : classNames)
+			{
+				this.exportedClasses.remove(className);
+			}
+		}
 	}
 	
 	/**
@@ -298,7 +327,9 @@ public class PluginMeta
 	 */
 	public Class<?> getExportedClass(String className)
 	{
-		return this.exportedClasses.get(className);
+		if (this.exportedClasses != null)
+			return this.exportedClasses.get(className);
+		return null;
 	}
 	
 	/**
@@ -312,6 +343,8 @@ public class PluginMeta
 	 */
 	public void setRequiredClassSet(List<String> required)
 	{
+		if (this.requiredClasses == null)
+			this.requiredClasses = new HashMap<>();
 		for (String name : required)
 			this.requiredClasses.put(name, null);
 	}
@@ -328,6 +361,8 @@ public class PluginMeta
 	 */
 	public void addRequiredClass(String className, Class<?> clazz)
 	{
+		if (this.requiredClasses == null)
+			this.requiredClasses = new HashMap<>();
 		this.requiredClasses.put(className, clazz);
 	}
 
@@ -342,7 +377,9 @@ public class PluginMeta
 	 */
 	public boolean isRequiredClasses(String className)
 	{
-		return this.requiredClasses.containsKey(className);
+		if (this.requiredClasses != null)
+			return this.requiredClasses.containsKey(className);
+		return false;
 	}
 	
 	/**
@@ -354,7 +391,9 @@ public class PluginMeta
 	 */
 	public Set<String> getRequiredClasses()
 	{
-		return this.requiredClasses.keySet();
+		if (this.requiredClasses != null)
+			return this.requiredClasses.keySet();
+		return Collections.emptySet();
 	}
 	
 	/**
@@ -366,7 +405,27 @@ public class PluginMeta
 	 *            The name of the required class
 	 * @return The class object of the required class
 	 */
-	public Class<?> getRequiredClass(String className) {
-		return this.requiredClasses.get(className);
+	public Class<?> getRequiredClass(String className) 
+	{
+		if (this.requiredClasses != null)
+			return this.requiredClasses.get(className);
+		return null;
+	}
+	
+	/**
+	 * <p>
+	 * Removes all references to classes marked as required.
+	 * </p>
+	 */
+	public void removeRequiredClasses()
+	{
+		if (this.requiredClasses != null)
+		{
+			Set<String> classNames = new HashSet<>(this.requiredClasses.keySet());
+			for (String className : classNames)
+			{
+				this.requiredClasses.remove(className);
+			}
+		}
 	}
 }

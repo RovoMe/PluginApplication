@@ -15,9 +15,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+//import java.util.concurrent.locks.Condition;
+//import java.util.concurrent.locks.Lock;
+//import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import at.rovo.core.util.ClassFinder;
@@ -103,9 +103,9 @@ public enum InjectionControllerImpl implements IInjectionController
 	/** states if the cleanup state is currently sleeping **/
 	private volatile boolean isSleeping = false;
 	
-	// lock to send a thread to sleep and wake up again
-	final Lock lock = new ReentrantLock();
-	final Condition noReferenceToMonitorAvailable = lock.newCondition();
+//	lock to send a thread to sleep and wake up again
+//	final Lock lock = new ReentrantLock();
+//	final Condition noReferenceToMonitorAvailable = lock.newCondition();
 	
 	/**
 	 * <p>
@@ -133,7 +133,6 @@ public enum InjectionControllerImpl implements IInjectionController
 						Reference<?> ref = refQueue.remove(500);
 						synchronized (initializations)
 						{
-							lock.lock();
 							// check if the map containing the already 
 							// initialized objects has a reference to an 
 							// unloaded object
@@ -146,8 +145,8 @@ public enum InjectionControllerImpl implements IInjectionController
 								if (name != null && name.contains("@"))
 								{
 									name = name.substring(0, name.indexOf("@"));
-//									synchronized (singletonRef)
-//									{
+									synchronized (singletonRef)
+									{
 										if (singletonRef.containsKey(name))
 										{
 											logger.log(Level.INFO, 
@@ -155,7 +154,7 @@ public enum InjectionControllerImpl implements IInjectionController
 													new Object[] { name });
 											singletonRef.remove(name);
 										}
-//									}
+									}
 								}
 							}
 						}
@@ -165,18 +164,25 @@ public enum InjectionControllerImpl implements IInjectionController
 						//  or everything is unloaded
 						if (initializations.isEmpty() && singletonRef.isEmpty())
 						{
-							lock.lock();
-							try
+							synchronized(cleanUpThread)
 							{
-								// wait till new references arrive
 								isSleeping = true;
-								noReferenceToMonitorAvailable.await();
-							}
-							finally
-							{
-								lock.unlock();
+								Thread.currentThread().wait();
 								isSleeping = false;
 							}
+						
+//							try
+//							{
+//								lock.lock();
+//								// wait till new references arrive
+//								isSleeping = true;
+//								noReferenceToMonitorAvailable.await();								
+//							}
+//							finally
+//							{
+//								lock.unlock();
+//								isSleeping = false;
+//							}
 						}
 					}
 				}
@@ -204,14 +210,18 @@ public enum InjectionControllerImpl implements IInjectionController
 		if (isSleeping)
 		{
 			// let the clean up thread finish gracefully
-			this.lock.lock();
-			try
+//			try
+//			{
+//				this.lock.lock();
+//				noReferenceToMonitorAvailable.signal();
+//			}
+//			finally
+//			{
+//				this.lock.unlock();
+//			}
+			synchronized (this.cleanUpThread) 
 			{
-				noReferenceToMonitorAvailable.signal();
-			}
-			finally
-			{
-				this.lock.unlock();
+				this.cleanUpThread.notify();
 			}
 		}
 	}
@@ -241,16 +251,20 @@ public enum InjectionControllerImpl implements IInjectionController
 				// the object
 				if (isEmpty)
 				{
-					try
+					synchronized (this.cleanUpThread)
 					{
-						this.lock.lock();
-						// signal that new references to monitor are available
-						noReferenceToMonitorAvailable.signal();
+						this.cleanUpThread.notify();
 					}
-					finally
-					{
-						this.lock.unlock();
-					}
+//					try
+//					{
+//						this.lock.lock();
+//						// signal that new references to monitor are available
+//						noReferenceToMonitorAvailable.signal();
+//					}
+//					finally
+//					{
+//						this.lock.unlock();
+//					}
 				}
 				obj = this.initializeObject(obj, true);
 			}
