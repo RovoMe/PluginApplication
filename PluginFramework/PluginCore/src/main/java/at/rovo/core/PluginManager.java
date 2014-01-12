@@ -584,6 +584,8 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			// lost
 			meta.setClassLoader(null);
 			meta.setClassObj(null);
+			meta.setExportedClassSet(null);
+			meta.setRequiredClassSet(null);
 			
 			for (IPluginListener listener : this.listeners)
 				listener.pluginRemoved(name);
@@ -692,12 +694,13 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	{
 		for (String classToExport : meta.getExportedClasses())
 		{
-			StrategyClassLoader<?> loader = this.commonClassLoader
-					.createLoaderForName(classToExport, strategies);
+			StrategyClassLoader<IPlugin> loader = 
+					new StrategyClassLoader<IPlugin>(strategies);
+			this.commonClassLoader.addLoaderForName(classToExport, loader);
 			Class<?> export = loader.loadClass(classToExport);
 			meta.addExpordedClass(classToExport, export);
-			logger.log(Level.INFO, "Loading exported class: {0}", 
-					new Object[] { classToExport });
+			logger.log(Level.INFO, "Loaded exported class: {0} with class loader {1} added as composition to {2}", 
+					new Object[] { classToExport, loader, this.commonClassLoader });
 		}
 	}
 	

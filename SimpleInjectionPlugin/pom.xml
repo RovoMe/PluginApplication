@@ -3,14 +3,14 @@
   
   <groupId>at.rovo.plugin.simpleInjectionPlugin</groupId>
   <artifactId>SimpleInjectionPlugin</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>1.0.0</version>
   <name>Simple Injection Plugin</name>
   
   <dependencies>
     <dependency>
       <groupId>at.rovo.plugin.interface</groupId>
       <artifactId>PluginInterface</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
+      <version>1.0.0</version>
     </dependency>
   </dependencies>    
 

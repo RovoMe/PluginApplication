@@ -288,6 +288,21 @@ public class PluginMeta
 	
 	/**
 	 * <p>
+	 * Returns the class object of the provided class name which was defined as
+	 * to export.
+	 * </p>
+	 * 
+	 * @param className
+	 *            The name of the exported class
+	 * @return The class object of the exported class
+	 */
+	public Class<?> getExportedClass(String className)
+	{
+		return this.exportedClasses.get(className);
+	}
+	
+	/**
+	 * <p>
 	 * Adds only the name of the as required annotated class to the plugin meta
 	 * description.
 	 * </p>
@@ -340,5 +355,18 @@ public class PluginMeta
 	public Set<String> getRequiredClasses()
 	{
 		return this.requiredClasses.keySet();
+	}
+	
+	/**
+	 * <p>
+	 * Returns the loaded class object for the provided class name.
+	 * </p>
+	 * 
+	 * @param className
+	 *            The name of the required class
+	 * @return The class object of the required class
+	 */
+	public Class<?> getRequiredClass(String className) {
+		return this.requiredClasses.get(className);
 	}
 }

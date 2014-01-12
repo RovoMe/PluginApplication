@@ -151,20 +151,15 @@ public class StrategyClassLoader<T> extends ClassLoader
 	@Override
 	protected Class<?> findClass(String className)
 			throws ClassNotFoundException
-	{
-		// propagate the call to the registered strategies
-		Class<?> foundClass = this.findLoadedClass(className);
-		if (foundClass != null)
-			return foundClass;
-		
+	{		
 		try
 		{
 			byte[] classBytes = this.findClassBytes(className);
 			if (classBytes != null)
 			{
 				LOGGER.log(Level.FINE,
-						"found bytes for class {0} - defining class",
-						new Object[] { className });
+						"found bytes for class {0} - defining class in {1}",
+						new Object[] { className, this });
 				// at least one strategy was able to find bytes for this class
 				// so create the class based on the found bytes
 				return defineClass(className, classBytes, 0, classBytes.length);
@@ -202,6 +197,8 @@ public class StrategyClassLoader<T> extends ClassLoader
 		byte[] classBytes = null;
 		for (IClassLoaderStrategy strategy : this.strategies)
 		{
+			LOGGER.log(Level.FINE, "find bytes for class {0} in {1} with strategy {2}",
+					new Object[] { className, this, strategy });
 			classBytes = strategy.findClassBytes(className);
 			if (classBytes != null)
 				return classBytes;

@@ -133,6 +133,7 @@ public enum InjectionControllerImpl implements IInjectionController
 						Reference<?> ref = refQueue.remove(500);
 						synchronized (initializations)
 						{
+							lock.lock();
 							// check if the map containing the already 
 							// initialized objects has a reference to an 
 							// unloaded object
@@ -145,15 +146,16 @@ public enum InjectionControllerImpl implements IInjectionController
 								if (name != null && name.contains("@"))
 								{
 									name = name.substring(0, name.indexOf("@"));
-									synchronized (singletonRef)
-									{
+//									synchronized (singletonRef)
+//									{
 										if (singletonRef.containsKey(name))
 										{
-											logger.log(Level.INFO, "Unloading singleton {0}", 
+											logger.log(Level.INFO, 
+													"Unloading singleton {0}", 
 													new Object[] { name });
 											singletonRef.remove(name);
 										}
-									}
+//									}
 								}
 							}
 						}
@@ -163,12 +165,16 @@ public enum InjectionControllerImpl implements IInjectionController
 						//  or everything is unloaded
 						if (initializations.isEmpty() && singletonRef.isEmpty())
 						{
-							synchronized (cleanUpThread)
+							lock.lock();
+							try
 							{
 								// wait till new references arrive
 								isSleeping = true;
-								Thread.currentThread().wait();
 								noReferenceToMonitorAvailable.await();
+							}
+							finally
+							{
+								lock.unlock();
 								isSleeping = false;
 							}
 						}
@@ -197,18 +203,23 @@ public enum InjectionControllerImpl implements IInjectionController
 		
 		if (isSleeping)
 		{
-			synchronized(this.cleanUpThread)
-			{
-				this.cleanUpThread.notify();
-			}
 			// let the clean up thread finish gracefully
-			noReferenceToMonitorAvailable.signal();
+			this.lock.lock();
+			try
+			{
+				noReferenceToMonitorAvailable.signal();
+			}
+			finally
+			{
+				this.lock.unlock();
+			}
 		}
 	}
 	
 	@Override
-	public Object initialize(Object obj) throws InjectionException
+	public  Object initialize(Object obj) throws InjectionException
 	{
+		logger.log(Level.FINE, "initializing {0}", new Object[] { obj } );
 		// every Object to initialize has to be annotated with "@Component"
 		Class<?> clazz = obj.getClass();
 		if (!clazz.isAnnotationPresent(Component.class))
@@ -230,12 +241,16 @@ public enum InjectionControllerImpl implements IInjectionController
 				// the object
 				if (isEmpty)
 				{
-					synchronized (this.cleanUpThread)
+					try
 					{
-						this.cleanUpThread.notify();
+						this.lock.lock();
+						// signal that new references to monitor are available
+						noReferenceToMonitorAvailable.signal();
 					}
-					// signal that new references to monitor are available
-					noReferenceToMonitorAvailable.signal();
+					finally
+					{
+						this.lock.unlock();
+					}
 				}
 				obj = this.initializeObject(obj, true);
 			}

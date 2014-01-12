@@ -53,11 +53,7 @@ public class InjectionPluginManager extends PluginManager
 	private static Logger logger = 
 			Logger.getLogger(InjectionPluginManager.class.getName());
 	/** The reference to the one and only instance of the InjectionPluginManager **/
-	private static InjectionPluginManager instance = null;
-	/** The decorator for the plug-in loader **/
-	private InjectionLoaderStrategyDecorator injectionStrategy = null;
-	/** The strategy pattern for loading plug-ins **/
-	private PluginLoaderStrategy pluginStrategy = new PluginLoaderStrategy();
+	private static InjectionPluginManager INSTANCE = null;
 	
 	/**
 	 * <p>Creates a new instance of this class and initializes required fields</p>
@@ -65,11 +61,6 @@ public class InjectionPluginManager extends PluginManager
 	private InjectionPluginManager()
 	{
 		super();
-		
-		// set the strategy to load plugins with the singleton class loader
-		// and decorate the strategy with an injection mechanism
-		this.pluginStrategy = new PluginLoaderStrategy();
-		this.injectionStrategy = new InjectionLoaderStrategyDecorator(this.pluginStrategy);
 	}
 	
 	/**
@@ -80,11 +71,19 @@ public class InjectionPluginManager extends PluginManager
 	 * 
 	 * @return The instance of the console
 	 */
-	public static PluginManager getInstance()
+	public static InjectionPluginManager getInstance()
 	{
-		if (instance == null)
-			instance = new InjectionPluginManager();
-		return instance;
+		if (INSTANCE == null)
+		{
+			synchronized (InjectionPluginManager.class)
+			{
+				if (INSTANCE == null)
+				{
+					INSTANCE = new InjectionPluginManager();
+				}
+			}
+		}
+		return INSTANCE;
 	}
 	
 	@Override
@@ -111,17 +110,21 @@ public class InjectionPluginManager extends PluginManager
 			strategy.add(injectionStrategy);
 			injectionStrategy.setJarFile(jarFile);
 			
+			// loads classes that are marked as to export with a new, separate 
+			// classloader and add the classes to the common classloader 
 			this.loadExportedClasses(meta, strategy);
 					
-			// create a new class loader for this plug-in
+			// create a new class loader for this plug-in which holds all 
+			// non-exported classes
 			StrategyClassLoader<IPlugin> pluginLoader = 
-					new StrategyClassLoader<>(this.commonClassLoader, strategy);
+					new StrategyClassLoader<>(this.getClass().getClassLoader(), strategy);
 			
 			// load all classes for this plug-in with our new class loader
 			Class<IPlugin> plugin = null;
 			for (String className : foundFiles)
 			{
-				Class<?> clazz = this.loadPlugin(className, pluginLoader, fileURL);
+				// load the class object for the respective class
+				Class<?> clazz = this.loadPlugin(meta, className, pluginLoader);
 				
 				if (clazz != null)
 				{
@@ -159,70 +162,56 @@ public class InjectionPluginManager extends PluginManager
 	 * Loads a plug-in whose .jar or .zip-file got already loaded into the
 	 * systems cache.
 	 * </p>
+	 * <p>
+	 * Note that classes that are marked as to export within a jar should
+	 * already have been loaded before and a reference within the meta data
+	 * object therefore be available.
+	 * </p>
 	 * 
-	 * @param pluginName
-	 *            Full name of the plug-in to load.
+	 * @param meta
+	 *            The plugin's meta definition which is used to extract the
+	 *            exported classes which have already been loaded
+	 * @param className
+	 *            Full name of the class to load.
+	 * @param loader
+	 *            A reference to the plugin's classloader
 	 */
-	protected Class<?> loadPlugin(String pluginName, StrategyClassLoader<IPlugin> loader, URL fileURL)
+	protected Class<?> loadPlugin(PluginMeta meta, String className, 
+			StrategyClassLoader<IPlugin> loader)
 	{
-		logger.log(Level.INFO, "Trying to load {0}", new Object[] { pluginName });
+		logger.log(Level.FINE, "Trying to load {0}", 
+				new Object[] { className });
 		try
 		{
-			// Check if the class to load is a singleton
-			// if so, use a single class-loader therefore
-			// if not, use a class-loader which is a child of
-			// the singleton class-loader so that a lookup
-			// for the singleton of every class loaded by
-			// a child class-loader will return this singleton
 			Class<?> result = null;
-			InjectionLoaderStrategyDecorator injector = null;
-			for (IClassLoaderStrategy strategy : loader.getStrategies())
+			// TODO: singleton instantiation is done by InjectionControllerImpl - here we should check if the class is marked as export or not
+			// The delegation mechanism should automatically detect non-exported dependency required by exported classes, which are loaded with
+			// the commonClassLoader, even if the class to load is by a child loader
+			logger.log(Level.FINE, "Plugin Meta used for class {0}: {1}", 
+					new Object[] { className, meta });
+			
+			// check if the class to load is marked as to export or if it is a 
+			// non-exported class of the plugin
+			if (meta != null && meta.isExported(className))
 			{
-				if (strategy instanceof InjectionLoaderStrategyDecorator)
+				// exported classes got loaded already within 
+				// reloadPlugin(String) and are stored within the meta data
+				// of the plug-in so load the class from there
+				Class<?> exportedClass = meta.getExportedClass(className);
+				if (exportedClass == null)
 				{
-					injector = (InjectionLoaderStrategyDecorator)strategy;
-					break;
-				}
-			}
-			if (injector != null)
-			{
-				// TODO: singleton instantiation is done by InjectionControllerImpl - here we should check if the class is marked as export or not
-				// The delegation mechanism should automatically detect non-exported dependency required by exported classes, which are loaded with
-				// the commonClassLoader, even if the class to load is by a child loader
-//				if (injector.isSingleton(pluginName))
-				PluginMeta meta = this.pluginData.get(pluginName);
-				if (meta != null && meta.isExported(pluginName))
-				{
-					// add the jar file to the strategy decorator so it is able to
-					// inject the invocation code for the IInjectionController
-					// into the class file's bytes
-					this.injectionStrategy.setJarFile(new File(fileURL.toURI()));
-					
-					// add the jar file to the class path of the plug-in class loader
-					// to enable the loading of singleton classes
-					URL cpBefore = this.pluginStrategy.getClassPath();
-					this.pluginStrategy.setClassPath(fileURL);
-					// load the class
-					result = this.commonClassLoader.loadClass(pluginName);
-					// and remove the added jar file to prevent following classes
-					// from being loaded by the singleton class loader
-					this.pluginStrategy.setClassPath(cpBefore);
-					logger.log(Level.INFO, "Used Singleton-ClassLoader for {0} with classloader {1}", 
-							new Object[] {result, result.getClassLoader()});
+					logger.log(Level.SEVERE, "Class object for exported class {0} not found!", 
+							new Object[] { className });
 				}
 				else
-				{
-					loader.addStrategy(injector);
-					result = loader.loadClass(pluginName);
-					logger.log(Level.INFO, "Used plugin-specific-ClassLoader for {0} with classloader {1}", 
-							new Object[] {result, result.getClassLoader()});
-				}
+					logger.log(Level.INFO, "Used common ClassLoader for {0} with classloader {1}", 
+						new Object[] { exportedClass, exportedClass.getClassLoader()});
 			}
 			else
 			{
-				result = loader.loadClass(pluginName);
-				logger.log(Level.INFO, "Used a plug-in ClassLoader for {0} with classloader {1}", 
-						new Object[] { result, result.getClassLoader()});
+				result = loader.loadClass(className);
+				logger.log(Level.INFO, "Used plugin-specific-ClassLoader for {0} with classloader {1}", 
+						new Object[] {result, result.getClassLoader()});
 			}
 			
 			return result;
@@ -230,7 +219,7 @@ public class InjectionPluginManager extends PluginManager
 		catch (Exception e)
 		{
 			logger.log(Level.WARNING, "Caught exception during loading of plugin: {0} - Reason: {1}", 
-					new Object[] {pluginName, e.getLocalizedMessage()});
+					new Object[] {className, e.getLocalizedMessage()});
 			throw new PluginException(e.getLocalizedMessage());
 		}
 	}

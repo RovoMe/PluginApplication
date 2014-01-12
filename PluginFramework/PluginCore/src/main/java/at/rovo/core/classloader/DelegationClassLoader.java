@@ -93,12 +93,10 @@ public final class DelegationClassLoader<T> extends ClassLoader
 	 * @param strategies The strategy for the class loader to be set
 	 * @return A strong reference to the class loader created
 	 */
-	public StrategyClassLoader<T> createLoaderForName(String name, Set<IClassLoaderStrategy> strategies)
+	public void addLoaderForName(String name, StrategyClassLoader<T> loader)
 	{
-		StrategyClassLoader<T> loader = new StrategyClassLoader<>(this, strategies);
 		WeakReference<StrategyClassLoader<T>> ref = new WeakReference<>(loader);
 		this.commonLoaders.put(name, ref);
-		return loader;
 	}
 	
 	/**
