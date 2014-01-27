@@ -709,8 +709,8 @@ public enum InjectionControllerImpl implements IInjectionController
 		{
 			// if field is required and there are any problems injecting
 			// the field throw an exception
-			logger.log(Level.WARNING, "Couldn't instantiate class - Reason: {0}", 
-					new Object[] {e.getLocalizedMessage()});
+			logger.log(Level.WARNING, "Couldn't instantiate class {0} - Reason: {1}", 
+					new Object[] { classToLoad, e.getLocalizedMessage()});
 			if (required)
 				throw new InjectionException(e);
 		}

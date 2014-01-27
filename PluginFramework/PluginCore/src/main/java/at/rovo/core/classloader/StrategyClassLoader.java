@@ -9,7 +9,6 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import at.rovo.core.util.IteratorEnumeration;
-import at.rovo.plugin.PluginException;
 
 /**
  * <p>
@@ -29,19 +28,18 @@ import at.rovo.plugin.PluginException;
  * method and return it to the caller.
  * </p>
  * 
- * @param <T>
- *            The type of class the classloader will return
  * @author Roman Vottner
  * @version 0.1
  */
-public class StrategyClassLoader<T> extends ClassLoader
-// implements IClassLoaderStrategy
+public class StrategyClassLoader extends ClassLoader
 {
 	/** The logger of this class **/
-	private static Logger LOGGER = Logger.getLogger(StrategyClassLoader.class
-			.getName());
+	private static Logger LOGGER = 
+			Logger.getLogger(StrategyClassLoader.class.getName());
 	/** The registered strategies for this class loader **/
 	private Set<IClassLoaderStrategy> strategies = null;
+	/** The name of this class loader **/
+	private String name = "Strategy class loader";
 
 	/**
 	 * <p>
@@ -131,35 +129,105 @@ public class StrategyClassLoader<T> extends ClassLoader
 		return strategies;
 	}
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public Class<T> loadClass(String name)
+	/**
+	 * <p>
+	 * Sets the name of the classloader instance.
+	 * </p>
+	 * 
+	 * @param name The new name of this instance
+	 */
+	public void setName(String name)
 	{
+		this.name = name;
+	}
+	
+	/**
+	 * <p>
+	 * Returns the name of this classloader instance.
+	 * </p>
+	 * 
+	 * @return The name of this classloader instance
+	 */
+	public String getName()
+	{
+		return this.name;
+	}
+	
+	@Override
+	public Class<?> loadClass(String name)
+	{
+		LOGGER.log(Level.INFO, "{0} - Request to load class {1}", 
+				new Object[] { this.name, name });
+		
+		Class<?> classToLoad = null;
 		try
 		{
-			return (Class<T>) super.loadClass(name);
+			ClassLoader parent = this.getParent();
+			
+			// check first if we haven't already loaded the class
+			classToLoad = this.hasLoadedClass(name);
+			if (classToLoad != null)
+			{
+				LOGGER.log(Level.INFO, "{0} - Load class '{1}' before", 
+						new Object[] { this.name, name });
+				return classToLoad;
+			}
+			
+			LOGGER.log(Level.INFO, "{0} - Didn't load class '{1}' before - trying parent loader", 
+					new Object[] { this.name, name });
+			// not loaded by us, maybe the ancestor have loaded it?
+			if (parent != null && parent instanceof DelegationClassLoader)
+				classToLoad = this.getParent().loadClass(name);
+			else
+				classToLoad =  super.loadClass(name);
+			
+			// the parents didn't load the class either, so do it ourselves
+			if (classToLoad == null)
+			{
+				LOGGER.log(Level.INFO, "{0} - Parent didn't load' {1}' either - finding it ourselves", 
+						new Object[] { this.name, name });
+				classToLoad = this.findClass(name);
+			}
 		}
 		catch (ClassNotFoundException e)
 		{
 			LOGGER.log(Level.SEVERE, "Could not find class: {0}",
 					new Object[] { name });
-			throw new PluginException("StrategyClassLoader.loadClass(" + name
-					+ "): " + e.getLocalizedMessage());
+//			throw new PluginException("StrategyClassLoader.loadClass(" + name
+//					+ "): " + e.getLocalizedMessage());
 		}
+		return classToLoad;
 	}
 
 	@Override
 	protected Class<?> findClass(String className)
 			throws ClassNotFoundException
-	{		
+	{
+		LOGGER.log(Level.INFO, "{0} - Request to find class {1}", 
+				new Object[] { this.name, className });
+		
+		// do not define already defined classes again
+		Class<?> clazz = this.findLoadedClass(className);
+		if (clazz != null)
+		{
+			LOGGER.log(Level.INFO, "{0} has loaded {1} before", 
+					new Object[] { this.name, className });
+			return clazz;
+		}
+		else
+		{
+			LOGGER.log(Level.INFO, "{0} has not loaded {1} before", 
+					new Object[] { this.name, className });
+		}
+		
 		try
 		{
 			byte[] classBytes = this.findClassBytes(className);
 			if (classBytes != null)
 			{
-				LOGGER.log(Level.FINE,
+				LOGGER.log(Level.INFO,
 						"found bytes for class {0} - defining class in {1}",
-						new Object[] { className, this });
+						new Object[] { className, this.getName() });
 				// at least one strategy was able to find bytes for this class
 				// so create the class based on the found bytes
 				return defineClass(className, classBytes, 0, classBytes.length);
@@ -192,7 +260,7 @@ public class StrategyClassLoader<T> extends ClassLoader
 	 *             an error
 	 */
 	private byte[] findClassBytes(String className) throws IOException
-	{
+	{		
 		// propagate the task to the strategies
 		byte[] classBytes = null;
 		for (IClassLoaderStrategy strategy : this.strategies)
@@ -217,7 +285,9 @@ public class StrategyClassLoader<T> extends ClassLoader
 			{
 				resource = strategy.findResource(resourceName);
 				if (resource != null)
+				{
 					return resource;
+				}
 			}
 			return resource;
 		}
@@ -312,8 +382,29 @@ public class StrategyClassLoader<T> extends ClassLoader
 		return stream;
 	}
 	
+	/**
+	 * <p>
+	 * Returns the class with the provided name if this instance has loaded the
+	 * requested class. If this classloader hasn't loaded that class it will
+	 * return <em>null</em>.
+	 * </p>
+	 * 
+	 * @param className
+	 *            The name of the class to check if it was loaded
+	 * @return The class object of the class which corresponds the given name or
+	 *         null if no class with the given name was loaded by this
+	 *         classloader instance
+	 */
 	public Class<?> hasLoadedClass(String className)
 	{
-		return this.findLoadedClass(className);
+		Class<?> clazz = this.findLoadedClass(className);
+		if (clazz != null)
+			LOGGER.log(Level.INFO, "{0} loaded class {1}/{2}", 
+					new Object[] { this.name, className, clazz });
+		else
+			LOGGER.log(Level.INFO, "{0} did not load class {1}", 
+					new Object[] { this.name, className });
+		
+		return clazz;
 	}
 }

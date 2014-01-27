@@ -50,7 +50,7 @@ import at.rovo.plugin.PluginException;
 public class InjectionPluginManager extends PluginManager
 {
 	/** The logger of this class **/
-	private static Logger logger = 
+	private static Logger LOGGER = 
 			Logger.getLogger(InjectionPluginManager.class.getName());
 	/** The reference to the one and only instance of the InjectionPluginManager **/
 	private static InjectionPluginManager INSTANCE = null;
@@ -87,18 +87,28 @@ public class InjectionPluginManager extends PluginManager
 	}
 	
 	@Override
-	@SuppressWarnings("unchecked")
 	protected void reloadPlugin(String pluginName)
 	{
 		PluginMeta meta = this.pluginData.get(pluginName);
 		try
 		{
+			// check if all dependencies specified for the plug-in are available
+			// skip further processing if a dependendy is missing
+			if (!this.checkDependencies(meta))
+			{
+				LOGGER.log(Level.INFO, "Dependency is missing for {0}", 
+						new Object[] { pluginName });
+				return;
+			}
+			
 			URL fileURL = meta.getJarFileURL();
 			File jarFile = new File(fileURL.toURI());
 			
+			LOGGER.log(Level.INFO, "Scanning Jar file {0} for classes of plugin {1}", 
+					new Object[] { jarFile, pluginName });
 			// get all classes provided by the jar file
 			List<String> foundFiles = ClassFinder.scanJarFileForClasses(jarFile);
-					
+			
 			// set the strategy for loading plug-ins
 			Set<IClassLoaderStrategy> strategy = new LinkedHashSet<>();
 			PluginLoaderStrategy pluginStrategy = 
@@ -116,13 +126,17 @@ public class InjectionPluginManager extends PluginManager
 					
 			// create a new class loader for this plug-in which holds all 
 			// non-exported classes
-			StrategyClassLoader<IPlugin> pluginLoader = 
-					new StrategyClassLoader<>(this.getClass().getClassLoader(), strategy);
+			StrategyClassLoader pluginLoader = 
+//					new StrategyClassLoader(this.getClass().getClassLoader(), strategy);
+					new StrategyClassLoader(this.commonClassLoader, strategy);
+			pluginLoader.setName("Plugin classloader for: "+pluginName);
 			
 			// load all classes for this plug-in with our new class loader
-			Class<IPlugin> plugin = null;
+			Class<?> plugin = null;
 			for (String className : foundFiles)
 			{
+				LOGGER.log(Level.INFO, "Loading class of plugin {0}: {1}", 
+						new Object[] { pluginName, className });
 				// load the class object for the respective class
 				Class<?> clazz = this.loadPlugin(meta, className, pluginLoader);
 				
@@ -134,7 +148,7 @@ public class InjectionPluginManager extends PluginManager
 					{
 						if (iface.getName().equals(IPlugin.class.getName()))
 						{
-							plugin = (Class<IPlugin>)clazz;
+							plugin = clazz;
 							meta.setClassObj(plugin);
 							meta.setClassLoader(pluginLoader);
 							break;
@@ -148,6 +162,15 @@ public class InjectionPluginManager extends PluginManager
 				// notify listeners of the successful load of the plug-in
 				for (IPluginListener listener : this.listeners)
 					listener.pluginLoaded(pluginName);
+			}
+			
+			// check if the added plugin solved dependency issues
+			if (!this.waitingForDependencies.isEmpty())
+			{
+				synchronized(this.waitingForDependencies)
+				{
+					this.waitingForDependencies.notify();
+				}
 			}
 		}
 		catch (Exception e)
@@ -177,9 +200,9 @@ public class InjectionPluginManager extends PluginManager
 	 *            A reference to the plugin's classloader
 	 */
 	protected Class<?> loadPlugin(PluginMeta meta, String className, 
-			StrategyClassLoader<IPlugin> loader)
+			StrategyClassLoader loader)
 	{
-		logger.log(Level.FINE, "Trying to load {0}", 
+		LOGGER.log(Level.FINE, "Trying to load {0}", 
 				new Object[] { className });
 		try
 		{
@@ -187,7 +210,7 @@ public class InjectionPluginManager extends PluginManager
 			// TODO: singleton instantiation is done by InjectionControllerImpl - here we should check if the class is marked as export or not
 			// The delegation mechanism should automatically detect non-exported dependency required by exported classes, which are loaded with
 			// the commonClassLoader, even if the class to load is by a child loader
-			logger.log(Level.FINE, "Plugin Meta used for class {0}: {1}", 
+			LOGGER.log(Level.FINE, "Plugin Meta used for class {0}: {1}", 
 					new Object[] { className, meta });
 			
 			// check if the class to load is marked as to export or if it is a 
@@ -200,25 +223,28 @@ public class InjectionPluginManager extends PluginManager
 				Class<?> exportedClass = meta.getExportedClass(className);
 				if (exportedClass == null)
 				{
-					logger.log(Level.SEVERE, "Class object for exported class {0} not found!", 
+					LOGGER.log(Level.INFO, "Class object for exported class '{0}' not found!", 
 							new Object[] { className });
 				}
 				else
-					logger.log(Level.INFO, "Used common ClassLoader for {0} with classloader {1}", 
-						new Object[] { exportedClass, exportedClass.getClassLoader()});
+					LOGGER.log(Level.INFO, "Used common ClassLoader for '{0}' with '{1}'", 
+						new Object[] { exportedClass, 
+							((StrategyClassLoader)exportedClass.getClassLoader()).getName() });
 			}
 			else
 			{
+				LOGGER.log(Level.INFO, "Trying to load {0} with plugin-loader", 
+						new Object[] { className });
 				result = loader.loadClass(className);
-				logger.log(Level.INFO, "Used plugin-specific-ClassLoader for {0} with classloader {1}", 
-						new Object[] {result, result.getClassLoader()});
+				LOGGER.log(Level.INFO, "Used plugin-specific-ClassLoader for '{0}' with '{1}'", 
+						new Object[] {result, ((StrategyClassLoader)result.getClassLoader()).getName()});
 			}
 			
 			return result;
 		}
 		catch (Exception e)
 		{
-			logger.log(Level.WARNING, "Caught exception during loading of plugin: {0} - Reason: {1}", 
+			LOGGER.log(Level.WARNING, "Caught exception during loading of plugin: {0} - Reason: {1}", 
 					new Object[] {className, e.getLocalizedMessage()});
 			throw new PluginException(e.getLocalizedMessage());
 		}
@@ -227,6 +253,8 @@ public class InjectionPluginManager extends PluginManager
 	@Override
 	public void close()
 	{
+		super.close();
+		
 		InjectionControllerImpl.INSTANCE.close();
 	}
 }

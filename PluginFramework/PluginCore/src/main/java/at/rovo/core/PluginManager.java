@@ -72,7 +72,7 @@ public abstract class PluginManager implements IDirectoryChangeListener
 {
 	/** The logger of this class **/
 	private static final Logger 
-		logger = Logger.getLogger(PluginManager.class.getName());
+		LOGGER = Logger.getLogger(PluginManager.class.getName());
 	/** The directory plug-ins should be found **/
 	private String pluginDir = null;
 	/** A mapping of plug-in names and their corresponding meta-data **/
@@ -81,7 +81,16 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	 * successful loads, unload or exceptions while loading plug-ins **/
 	protected Set<IPluginListener> listeners;
 	/** The class loader which holds the singleton components **/
-	protected DelegationClassLoader<IPlugin> commonClassLoader = null;
+	protected DelegationClassLoader commonClassLoader = null;
+	
+	/** The thread which takes care of re-checking if a needed dependency was
+	 * already loaded **/
+	protected final Thread waitForDependenciesThread;
+	/** **/
+	protected final List<String> waitingForDependencies = new ArrayList<>();
+	/** Specifies if the waiting for dependencies thread should finish his work
+	 * (= true) or if it is still needed (= false) **/
+	protected volatile boolean done = false;
 	
 	/**
 	 * <p>
@@ -94,7 +103,63 @@ public abstract class PluginManager implements IDirectoryChangeListener
 		this.listeners = new CopyOnWriteArraySet<>();
 		// create the class loader which will hold the exported and required
 		// class definitions and therefore be responsible for their creation 
-		this.commonClassLoader = new DelegationClassLoader<>(this.getClass().getClassLoader());
+		this.commonClassLoader = new DelegationClassLoader(this.getClass().getClassLoader());
+		
+		this.waitForDependenciesThread = new Thread(new Runnable() 
+		{
+			@Override
+			public void run()
+			{
+				List<String> reload = new ArrayList<>();
+				while (!done)
+				{
+					if (!waitingForDependencies.isEmpty())
+					{
+						reload.clear();
+						synchronized(waitingForDependencies)
+						{
+							// wait 10 seconds before retry
+							try
+							{
+								waitingForDependencies.wait(10000);
+							}
+							catch (InterruptedException e)
+							{
+								e.printStackTrace();
+							}
+							// check if the dependencies of the plugin in 
+							// question are now available
+							for (String plugin : waitingForDependencies)
+							{
+								reload.add(plugin);
+							}
+						}
+						
+						if (!reload.isEmpty())
+							for (String plugin : reload)
+								reloadPlugin(plugin);
+					}
+					else
+					{
+						// no plugins available to check
+						synchronized(waitingForDependencies)
+						{
+							try
+							{
+								waitingForDependencies.wait();
+							}
+							catch (InterruptedException e)
+							{
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+			}
+		});
+		this.waitForDependenciesThread.setName("WaitForDependencies");
+		this.waitForDependenciesThread.setDaemon(true);
+		this.waitForDependenciesThread.start();
 	}
 		
 	/**
@@ -378,7 +443,7 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			// will be put into the common classloader
 			String rawExportedClasses = attributes.getValue("Export");
 			List<String> export = this.parseClassSet(rawExportedClasses);
-			logger.log(Level.INFO, "Found classes to export {0} inside jar {1}", 
+			LOGGER.log(Level.INFO, "Found classes to export {0} inside jar {1}", 
 					new Object[] { export, file });
 			
 			// parse the as required marked classes - before loading any class 
@@ -386,7 +451,7 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			// available
 			String rawRequiredClasses = attributes.getValue("Requires");
 			List<String> required = this.parseClassSet(rawRequiredClasses);
-			logger.log(Level.INFO, "Found required classes for {0}: {1}", 
+			LOGGER.log(Level.INFO, "Found required classes for {0}: {1}", 
 					new Object[] { file, required });
 
 			attributes = null;
@@ -438,6 +503,8 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			meta.setDeclaredClassName(pluginName);
 			meta.setExportedClassSet(exported);
 			meta.setRequiredClassSet(required);
+			LOGGER.log(Level.INFO, "Created meta for plugin {0}", 
+					new Object[] { pluginName });
 		}
 		try
 		{
@@ -470,9 +537,15 @@ public abstract class PluginManager implements IDirectoryChangeListener
 		PluginMeta meta = this.pluginData.get(pluginName);
 		try
 		{
-			// TODO: a check and routine needs to be implemented to deal with the required setting
+			// check if all dependencies specified for the plug-in are available
+			// skip further processing if a dependendy is missing
+			if (!this.checkDependencies(meta))
+				return;
+			
 			URL fileURL = meta.getJarFileURL();
 
+			LOGGER.log(Level.INFO, "Creating strategy for {0}", 
+					new Object[] { pluginName });
 			Set<IClassLoaderStrategy> strategy = 
 					new HashSet<IClassLoaderStrategy>();
 			strategy.add(new PluginLoaderStrategy(fileURL));	
@@ -483,17 +556,28 @@ public abstract class PluginManager implements IDirectoryChangeListener
 			
 			// load the rest of the plugin with the plugin's own respective 
 			// classloader which is a child of the commons class loader
-			StrategyClassLoader<IPlugin> pluginLoader = 
-					new StrategyClassLoader<>(this.commonClassLoader, strategy);
+			StrategyClassLoader pluginLoader = 
+					new StrategyClassLoader(this.commonClassLoader, strategy);
 
 			meta.setClassLoader(pluginLoader);
 				
-			Class<IPlugin> result = pluginLoader.loadClass(pluginName);
+			LOGGER.log(Level.INFO, "Loading plugin's main class: {0}", 
+					new Object[] { pluginName });
+			Class<?> result = pluginLoader.loadClass(pluginName);
 			meta.setClassObj(result);
 			if (result != null)
 			{
 				for (IPluginListener listener : this.listeners)
 					listener.pluginLoaded(pluginName);
+			}
+			
+			// check if the added plugin solved dependency issues
+			if (!this.waitingForDependencies.isEmpty())
+			{
+				synchronized(this.waitingForDependencies)
+				{
+					this.waitingForDependencies.notify();
+				}
 			}
 		}
 		catch (Exception e)
@@ -514,14 +598,14 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	 */
 	public IPlugin getNewPluginInstance(String name)
 	{
-		logger.log(Level.INFO, "plugin-name: {0}", new Object[] { name });
+		LOGGER.log(Level.INFO, "plugin-name: {0}", new Object[] { name });
 		PluginMeta meta = this.pluginData.get(name);
-		Class<IPlugin> _class = meta.getClassObj();
-		Constructor<IPlugin> c;
+		Class<?> _class = meta.getClassObj();
+		Constructor<?> c;
 		try 
 		{
 			c = _class.getConstructor();
-			IPlugin instance = c.newInstance();
+			IPlugin instance = (IPlugin)c.newInstance();
 			meta.setPlugin(instance);
 			return instance;
 		} 
@@ -704,13 +788,22 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	{
 		for (String classToExport : meta.getExportedClasses())
 		{
-			StrategyClassLoader<IPlugin> loader = 
-					new StrategyClassLoader<IPlugin>(strategies);
+			StrategyClassLoader loader = new StrategyClassLoader(this.commonClassLoader, strategies);
 			this.commonClassLoader.addLoaderForName(classToExport, loader);
-			Class<?> export = loader.loadClass(classToExport);
+			Class<?> export = null;
+			try
+			{
+				export = loader.loadClass(classToExport);
+			}
+//			catch (ClassNotFoundException e)
+			catch (Exception e)
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			meta.addExpordedClass(classToExport, export);
-			logger.log(Level.INFO, "Loaded exported class: {0} with class loader {1} added as composition to {2}", 
-					new Object[] { classToExport, loader, this.commonClassLoader });
+			LOGGER.log(Level.INFO, "Loaded exported class: '{0}' with '{1}' added as composition to '{2}'", 
+					new Object[] { classToExport, loader.getName(), this.commonClassLoader });
 		}
 	}
 	
@@ -719,5 +812,86 @@ public abstract class PluginManager implements IDirectoryChangeListener
 	 * Executes cleanup steps necessary in order to finish properly.
 	 * </p>
 	 */
-	public abstract void close();
+	public void close()
+	{
+		this.done = true;
+		if (this.waitForDependenciesThread != null 
+				&& this.waitingForDependencies != null)
+		{
+			synchronized (this.waitingForDependencies)
+			{
+				this.waitingForDependencies.notify();
+			}
+		}
+	}
+	
+	/**
+	 * <p>
+	 * Checks if all dependencies for a plug-in are available. If a required
+	 * class is missing, this method will add the plug-in to a waiting list
+	 * which will retry every 10 seconds if the dependencies are available.
+	 * </p>
+	 * 
+	 * @param meta
+	 *            The plug-ins meta data which contain the required dependencies
+	 *            for the given plug-in as well as the plug-ins name
+	 * @return true if all dependencies are available, false otherwise
+	 */
+	protected boolean checkDependencies(PluginMeta meta)
+	{
+		boolean allClassesAvailable = true;
+		// check if all dependencies are available in the common classloader
+		Set<String> requiredClasses = meta.getRequiredClasses();
+		for (String requiredClass : requiredClasses)
+		{
+			if (!this.commonClassLoader.containsClass(requiredClass))
+			{
+				LOGGER.log(Level.INFO, "Plugin {0} is missing class '{1}'.", 
+						new Object[] { meta.getPluginName(), requiredClass });
+				allClassesAvailable = false;
+				break;
+			}
+		}
+		
+		// only proceed if all required classes (if any were defined) are
+		// available
+		if (allClassesAvailable)
+		{
+			// The dependencies for the plugin are (now) available. If the
+			// plugin was set on the waiting list before remove it
+			synchronized(this.waitingForDependencies)
+			{
+				if (this.waitingForDependencies.contains(meta.getPluginName()))
+				{
+					this.waitingForDependencies.remove(meta.getPluginName());
+					LOGGER.log(Level.INFO, "Dependencies for plugin {0} found - loading plugin.", 
+							new Object[] { meta.getPluginName() });
+				}
+			}
+			return true;
+		}
+		else
+		{
+			LOGGER.log(Level.FINE, "Missing depency for {0}", 
+					new Object[] { meta.getPluginName()});
+			synchronized(this.waitingForDependencies)
+			{
+				// add the plugin name if it was not yet avaialble
+				if (!this.waitingForDependencies.contains(meta.getPluginName()))
+				{
+					LOGGER.log(Level.INFO, 
+							"Missing dependency for plugin {0} - added plugin to waiting list", 
+							new Object[] { meta.getPluginName() });
+					this.waitingForDependencies.add(meta.getPluginName());
+				}
+				else
+					LOGGER.log(Level.INFO, "Dependencies for plugin {0} still not found.", 
+							new Object[] { meta.getPluginName() });
+				// wake up the thread if it was sleeping
+				this.waitingForDependencies.notify();
+			}
+			// do not proceed as not all dependencies are available
+			return false;
+		}
+	}
 }

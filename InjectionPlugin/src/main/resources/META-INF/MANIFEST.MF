@@ -1,6 +1,6 @@
 Manifest-Version: 1.0
 Class-Path: PluginInterface-1.0.0.jar
-Export: at.rovo.plugin.injection.D at.rovo.plugin.injection.C
+Export: at.rovo.plugin.injection.D at.rovo.plugin.injection.E
 Plugin-Class: at.rovo.plugin.injection.ControllerWithInjections
 
 Name: at/rovo/plugin/

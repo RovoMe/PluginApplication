@@ -32,7 +32,7 @@ public class PluginMeta
 	/** The jar file containing the plug-in **/
 	private URL jarFile = null;
 	/** The IPlugin implementing class **/
-	private Class<IPlugin> pluginClass = null;
+	private Class<?> pluginClass = null;
 	/** The loaded and initialized plug-in **/
 	private IPlugin plugin = null;
 	/** Will hold a strong reference to the exported classes **/
@@ -187,7 +187,7 @@ public class PluginMeta
 	 * @param plugin
 	 *            The class object of the implementing plug-in
 	 */
-	public void setClassObj(Class<IPlugin> plugin)
+	public void setClassObj(Class<?> plugin)
 	{
 		this.pluginClass = plugin;
 	}
@@ -200,7 +200,7 @@ public class PluginMeta
 	 * 
 	 * @return The class object of the implementing plug-in
 	 */
-	public Class<IPlugin> getClassObj()
+	public Class<?> getClassObj()
 	{
 		return this.pluginClass;
 	}

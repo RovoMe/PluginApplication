@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import at.rovo.plugin.PluginException;
 
 /**
  * <p>
@@ -34,16 +33,16 @@ import at.rovo.plugin.PluginException;
  * 
  * @author Roman Vottner
  */
-public final class DelegationClassLoader<T> extends ClassLoader
+public final class DelegationClassLoader extends ClassLoader
 {
 	/** The logger of this class **/
-	private static Logger logger = 
+	private static Logger LOGGER = 
 			Logger.getLogger(DelegationClassLoader.class.getName());
 	
 	/** Caches the created composite class loaders, this class loader will act
 	 * as parent for, with the name of the class that was marked as 
 	 * <code>export</code>**/
-	private Map<String, WeakReference<StrategyClassLoader<T>>> commonLoaders = 
+	private Map<String, WeakReference<StrategyClassLoader>> commonLoaders = 
 			new HashMap<>();
 	
 	/**
@@ -93,9 +92,10 @@ public final class DelegationClassLoader<T> extends ClassLoader
 	 * @param strategies The strategy for the class loader to be set
 	 * @return A strong reference to the class loader created
 	 */
-	public void addLoaderForName(String name, StrategyClassLoader<T> loader)
+	public void addLoaderForName(String name, StrategyClassLoader loader)
 	{
-		WeakReference<StrategyClassLoader<T>> ref = new WeakReference<>(loader);
+		loader.setName("Composite classloader for: "+name);
+		WeakReference<StrategyClassLoader> ref = new WeakReference<>(loader);
 		this.commonLoaders.put(name, ref);
 	}
 	
@@ -118,76 +118,139 @@ public final class DelegationClassLoader<T> extends ClassLoader
 	}
 	
 	@Override
-	@SuppressWarnings("unchecked")
-	public Class<T> loadClass(String name)
+	public Class<?> loadClass(String name)
 	{
-		try 
+		LOGGER.log(Level.INFO, "Delegagion Loader - Request to load class {0}",
+				new Object[] { name });
+		try
 		{
-			Class<T> foundClass = (Class<T>)super.loadClass(name);
+			Class<?> foundClass = null;
+			List<String> removeLoader = new ArrayList<>();
+			for (String loaderName : this.commonLoaders.keySet())
+			{
+				WeakReference<StrategyClassLoader> ref = 
+						this.commonLoaders.get(loaderName);
+				StrategyClassLoader loader = ref.get();
+				if (loader != null && foundClass == null)
+				{
+					LOGGER.log(
+							Level.INFO,
+							"Delegagion Loader - Request to load class {0} - delegating to composit classloaders {1}",
+							new Object[] { name, loader.getName() });
+					Class<?> _foundClass = loader.hasLoadedClass(name);
+					if (_foundClass != null)
+					{
+						LOGGER.log(Level.INFO, "Delegation: '{0}' - already loaded class '{1}'", 
+								new Object[] { loader.getName(), name });
+						foundClass = _foundClass;
+					}
+				}
+
+				if (loader == null)
+					removeLoader.add(loaderName);
+			}
+
+			for (String loaderName : removeLoader)
+				this.commonLoaders.remove(loaderName);
+			if (foundClass != null)
+				return foundClass;
+
+			LOGGER.log(Level.INFO, "Asking parent to load class {0}. ",
+					new Object[] { name });
+
+			try
+			{
+				if (this.getParent() != null)
+					foundClass = this.getParent().loadClass(name);
+				else
+					foundClass = super.loadClass(name);
+			}
+			catch (ClassNotFoundException cnfEx)
+			{
+				LOGGER.log(
+						Level.INFO,
+						"Parent classloader didn't know how to load class {0}. Starting delegation.",
+						new Object[] { name });
+			}
+			
 			if (foundClass == null)
 			{
-				List<String> removeLoader = new ArrayList<>();
-				for (String loaderName : this.commonLoaders.keySet())
-				{
-					WeakReference<StrategyClassLoader<T>> ref = 
-							this.commonLoaders.get(loaderName);
-					ClassLoader loader = ref.get();
-					if (loader != null && foundClass == null)
-					{
-						Class<?> _foundClass = loader.loadClass(loaderName);
-						if (_foundClass != null)
-							foundClass = (Class<T>)_foundClass;
-					}
-					
-					if (loader == null)
-						removeLoader.add(loaderName);
-				}
-				
-				for (String loaderName : removeLoader)
-					this.commonLoaders.remove(loaderName);
+				LOGGER.log(
+						Level.INFO,
+						"Delegation: Parent didn't find class '{0}' either! Invoking find",
+						new Object[] { name });
+				foundClass = this.findClass(name);
 			}
+				
 			return foundClass;
-		} 
-		catch (ClassNotFoundException e) 
-		{
-			logger.log(Level.SEVERE, "Could not find class: {0}", 
-					new Object[] {name});
-			throw new PluginException("StrategyClassLoader.loadClass("
-					+ name + "): " + e.getLocalizedMessage());
 		}
+		catch (ClassNotFoundException e)
+		{
+			LOGGER.log(Level.SEVERE, "Could not find class: {0}",
+					new Object[] { name });
+			// throw new PluginException("StrategyClassLoader.loadClass("
+			// + name + "): " + e.getLocalizedMessage());
+		}
+		return null;
 	}
 	
 	@Override
 	protected Class<?> findClass(String className) throws ClassNotFoundException
 	{		
+		LOGGER.log(Level.INFO, "Delegagion Loader - Request to find class {0}", 
+				new Object[] { className });
+		
 		// propagate the call to the registered strategies
 		List<String> removeLoader = new ArrayList<>();
 		Class<?> foundClass = null;
+		boolean foundRequestor = false;
 		for (String loaderName : this.commonLoaders.keySet())
 		{
-			WeakReference<StrategyClassLoader<T>> ref = 
+			WeakReference<StrategyClassLoader> ref = 
 					this.commonLoaders.get(loaderName);
-			StrategyClassLoader<T> loader = ref.get();
+			StrategyClassLoader loader = ref.get();
 			if (loader != null && foundClass == null)
 			{
 				try
 				{
-					
-					Class<?> _foundClass = loader.findClass(className);
-					
-					if (_foundClass != null)
+					Class<?> loadedClass = loader.hasLoadedClass(className);
+					if (loadedClass != null)
 					{
-						foundClass = _foundClass;
-						
-						logger.log(Level.FINE, 
-								"found bytes for class {0} - defining class", 
-								new Object[] {className});
+						LOGGER.log(Level.INFO, "Delegation: '{0}' - already loaded class {1}", 
+								new Object[] { loader.getName(), className });
+						foundClass = loadedClass;
+						foundRequestor = true;
 					}
+					else
+						LOGGER.log(Level.INFO, "Delegation: '{0}' - Didn't load class '{1}'", 
+								new Object[] { loader.getName(), className });
+					
+//					if (loader.getRequestedClassToLoad() != null 
+//							&& loader.getRequestedClassToLoad().equals(className))
+//					{
+//						LOGGER.log(Level.INFO, "Delegation: '{0}' - Requested to find class {1}", 
+//								new Object[] { loader.getName(), className });
+//						Class<?> _foundClass = loader.findClass(className);
+//						foundRequestor = true;
+//						
+//						if (_foundClass != null)
+//						{
+//							foundClass = _foundClass;
+//							
+//							LOGGER.log(Level.FINE, 
+//									"found bytes for class '{0}' - defining class", 
+//									new Object[] {className});
+//						}
+//					}
+//					else
+//						LOGGER.log(Level.INFO, "Delegation: '{0}' - Didn't request to find class '{1}'", 
+//								new Object[] { loader.getName(), className });
 				}
-				catch(ClassNotFoundException cnfEx)
+//				catch(ClassNotFoundException cnfEx)
+				catch(Exception cnfEx)
 				{
-					logger.log(Level.FINE, 
-							"found bytes for class {0} - defining class", 
+					LOGGER.log(Level.SEVERE, 
+							"Could not find bytes for class {0}", 
 							new Object[] {className});
 				}
 			}
@@ -198,6 +261,10 @@ public final class DelegationClassLoader<T> extends ClassLoader
 		
 		for (String loader : removeLoader)
 			this.commonLoaders.remove(loader);
+		
+		if (!foundRequestor)
+			LOGGER.log(Level.INFO, "Delegation: Child obviously request to find class '{0}'", 
+					new Object[] { className });
 		
 		return foundClass;
 	}
@@ -210,9 +277,9 @@ public final class DelegationClassLoader<T> extends ClassLoader
 		List<String> removeLoader = new ArrayList<>();
 		for (String loaderName : this.commonLoaders.keySet())
 		{
-			WeakReference<StrategyClassLoader<T>> ref = 
+			WeakReference<StrategyClassLoader> ref = 
 					this.commonLoaders.get(loaderName);
-			StrategyClassLoader<T> loader = ref.get();
+			StrategyClassLoader loader = ref.get();
 			
 			// if we already found a resource don't look any further - just 
 			// keep iterating through the loaders and check if one got unloaded
@@ -244,9 +311,9 @@ public final class DelegationClassLoader<T> extends ClassLoader
 		List<String> removeLoader = new ArrayList<>();
 		for (String loaderName : this.commonLoaders.keySet())
 		{
-			WeakReference<StrategyClassLoader<T>> ref = 
+			WeakReference<StrategyClassLoader> ref = 
 					this.commonLoaders.get(loaderName);
-			StrategyClassLoader<T> loader = ref.get();
+			StrategyClassLoader loader = ref.get();
 			
 			// if we already found a resource don't look any further - just 
 			// keep iterating through the loaders and check if one got unloaded
@@ -278,9 +345,9 @@ public final class DelegationClassLoader<T> extends ClassLoader
 		List<String> removeLoader = new ArrayList<>();
 		for (String name : this.commonLoaders.keySet())
 		{
-			WeakReference<StrategyClassLoader<T>> ref = 
+			WeakReference<StrategyClassLoader> ref = 
 					this.commonLoaders.get(name);
-			StrategyClassLoader<T> loader = ref.get();
+			StrategyClassLoader loader = ref.get();
 			
 			// if we already found a resource don't look any further - just 
 			// keep iterating through the loaders and check if one got unloaded
@@ -293,7 +360,6 @@ public final class DelegationClassLoader<T> extends ClassLoader
 			
 			if (loader == null)
 				this.commonLoaders.remove(name);
-				
 		}
 		// now cleanup the cache if any loaders got unloaded
 		if (!commonLoaders.isEmpty())
@@ -302,5 +368,51 @@ public final class DelegationClassLoader<T> extends ClassLoader
 				this.commonLoaders.remove(name);
 		}
 		return null;
+	}
+	
+	/**
+	 * <p>
+	 * Returns true if a composite classloader has loaded a class with the
+	 * provided <em>className</em>, false if no classloader has loaded that
+	 * class.
+	 * </p>
+	 * 
+	 * @param className
+	 *            The name of the class which should be checked if it is already
+	 *            available
+	 * @return true if the specified class was loaded by one of the composite
+	 *         classloaders, false otherwhise
+	 */
+	public boolean containsClass(String className)
+	{
+		boolean hasLoadedClass = false;
+		List<String> removeLoader = new ArrayList<>();
+		for (String name : this.commonLoaders.keySet())
+		{
+			WeakReference<StrategyClassLoader> ref = 
+					this.commonLoaders.get(name);
+			StrategyClassLoader loader = ref.get();
+			
+			// if we already found a classloader that loaded the requested class
+			// just keep iterating through the loaders and check if one got 
+			// unloaded
+			if (loader != null && !hasLoadedClass)
+			{
+				if (null != loader.hasLoadedClass(className))
+				{
+					hasLoadedClass = true;
+				}
+			}
+			
+			if (loader == null)
+				this.commonLoaders.remove(name);
+		}
+		// now cleanup the cache if any loaders got unloaded
+		if (!commonLoaders.isEmpty())
+		{
+			for (String name : removeLoader)
+				this.commonLoaders.remove(name);
+		}
+		return hasLoadedClass;
 	}
 }
