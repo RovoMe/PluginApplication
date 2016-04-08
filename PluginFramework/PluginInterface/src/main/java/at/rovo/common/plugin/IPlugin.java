@@ -1,4 +1,4 @@
-package at.rovo.plugin;
+package at.rovo.common.plugin;
 
 /**
  * <p>A plug-in is a java class which gets loaded at runtime of the application
@@ -14,5 +14,5 @@ public interface IPlugin
 	/**
 	 * <p>Invokes execution of the plug-ins main class</p>
 	 */
-	public void execute();
+	void execute();
 }

@@ -1,4 +1,4 @@
-package at.rovo.annotations;
+package at.rovo.common.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -20,5 +20,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE})
 public @interface Component
 {    
-    public ScopeType scope() default ScopeType.PROTOTYPE;
+    ScopeType scope() default ScopeType.PROTOTYPE;
 }

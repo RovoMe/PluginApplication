@@ -1,8 +1,9 @@
 package at.rovo.console.command;
 
+import at.rovo.console.Console;
 import java.util.Set;
 import at.rovo.core.PluginManager;
-import at.rovo.plugin.IPlugin;
+import at.rovo.common.plugin.IPlugin;
 
 /**
  * <p><code>ExecuteCommand</code> executes a registered plug-in. The 

@@ -1,8 +1,8 @@
 package at.rovo.plugin.injection2;
 
-import at.rovo.annotations.Component;
-import at.rovo.annotations.ComponentId;
-import at.rovo.annotations.ScopeType;
+import at.rovo.common.annotations.Component;
+import at.rovo.common.annotations.ComponentId;
+import at.rovo.common.annotations.ScopeType;
 
 @Component(scope=ScopeType.SINGLETON)
 public class Singleton

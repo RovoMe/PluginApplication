@@ -14,11 +14,11 @@ package at.rovo.plugin.injection;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import at.rovo.annotations.Component;
-import at.rovo.annotations.ComponentId;
-import at.rovo.annotations.Inject;
-import at.rovo.annotations.ScopeType;
-import at.rovo.plugin.IPlugin;
+import at.rovo.common.annotations.Component;
+import at.rovo.common.annotations.ComponentId;
+import at.rovo.common.annotations.Inject;
+import at.rovo.common.annotations.ScopeType;
+import at.rovo.common.plugin.IPlugin;
 
 @Component(scope=ScopeType.PROTOTYPE)
 public class SimpleController implements IPlugin

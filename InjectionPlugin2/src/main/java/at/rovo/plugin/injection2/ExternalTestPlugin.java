@@ -1,7 +1,7 @@
 package at.rovo.plugin.injection2;
 
-import at.rovo.plugin.IPlugin;
-import at.rovo.plugin.PluginException;
+import at.rovo.common.plugin.IPlugin;
+import at.rovo.common.plugin.PluginException;
 
 public class ExternalTestPlugin implements IPlugin
 {

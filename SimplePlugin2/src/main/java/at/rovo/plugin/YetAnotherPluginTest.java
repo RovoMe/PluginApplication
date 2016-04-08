@@ -1,5 +1,7 @@
 package at.rovo.plugin;
 
+import at.rovo.common.plugin.IPlugin;
+
 public class YetAnotherPluginTest implements IPlugin
 {
 	@Override

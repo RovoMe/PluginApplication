@@ -1,4 +1,4 @@
-package at.rovo.annotations;
+package at.rovo.common.annotations;
 
 import static java.lang.annotation.ElementType.FIELD;
 import java.lang.annotation.Retention;

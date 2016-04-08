@@ -1,6 +1,6 @@
 package at.rovo.plugin.test;
 
-import at.rovo.plugin.IPlugin;
+import at.rovo.common.plugin.IPlugin;
 
 public class PluginTest implements IPlugin
 {

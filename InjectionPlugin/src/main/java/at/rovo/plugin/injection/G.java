@@ -1,7 +1,7 @@
 package at.rovo.plugin.injection;
 
-import at.rovo.annotations.Component;
-import at.rovo.annotations.ComponentId;
+import at.rovo.common.annotations.Component;
+import at.rovo.common.annotations.ComponentId;
 
 @Component
 public class G

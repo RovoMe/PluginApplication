@@ -1,4 +1,4 @@
-package at.rovo.plugin;
+package at.rovo.common.plugin;
 
 public class PluginException extends RuntimeException 
 {

@@ -1,11 +1,8 @@
 package at.rovo.core.injection;
 
 /**
- * <p>
- * This annotation gets automatically injected into instrumented classes to 
- * prevent instrumenting them again.
- * </p>
- * 
+ * This annotation gets automatically injected into instrumented classes to prevent instrumenting them again.
+ *
  * @author Roman Vottner
  */
 public @interface Instrumented

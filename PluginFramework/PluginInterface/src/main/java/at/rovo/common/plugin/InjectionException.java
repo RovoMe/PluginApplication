@@ -1,4 +1,4 @@
-package at.rovo.plugin;
+package at.rovo.common.plugin;
 
 /**
  * <p>Thrown whenever an injection problem occurs.</p>

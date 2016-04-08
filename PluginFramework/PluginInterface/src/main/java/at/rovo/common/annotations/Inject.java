@@ -1,4 +1,4 @@
-package at.rovo.annotations;
+package at.rovo.common.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -17,8 +17,8 @@ import java.lang.annotation.Target;
 @Target({ElementType.FIELD})
 public @interface Inject
 {    
-    public boolean required() default true;
-    public Class<?> specificType() default DEFAULT.class;
+    boolean required() default true;
+    Class<?> specificType() default DEFAULT.class;
             
-    static final class DEFAULT {}
+    final class DEFAULT {}
 }

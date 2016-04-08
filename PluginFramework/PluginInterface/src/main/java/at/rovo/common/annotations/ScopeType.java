@@ -1,4 +1,4 @@
-package at.rovo.annotations;
+package at.rovo.common.annotations;
 
 /**
  * <p>Defines the possible {@link Component} type. A 
@@ -13,4 +13,4 @@ public enum ScopeType
 {
     SINGLETON,
     PROTOTYPE
-};
+}

@@ -12,12 +12,12 @@
 
 package at.rovo.plugin.injection;
 
-import at.rovo.annotations.Component;
-import at.rovo.annotations.ComponentId;
-import at.rovo.annotations.Inject;
-import at.rovo.annotations.ScopeType;
-import at.rovo.plugin.IPlugin;
-import at.rovo.plugin.InjectionException;
+import at.rovo.common.annotations.Component;
+import at.rovo.common.annotations.ComponentId;
+import at.rovo.common.annotations.Inject;
+import at.rovo.common.annotations.ScopeType;
+import at.rovo.common.plugin.IPlugin;
+import at.rovo.common.plugin.InjectionException;
 
 @Component(scope=ScopeType.PROTOTYPE)
 public class ControllerWithInjections implements IPlugin
