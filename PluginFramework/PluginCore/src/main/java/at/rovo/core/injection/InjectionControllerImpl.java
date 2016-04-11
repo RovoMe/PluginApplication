@@ -72,7 +72,7 @@ public enum InjectionControllerImpl implements IInjectionController
     /**
      * Contains a phantom reference to keep track of unloading events for instances injected
      **/
-    private final Map<PhantomReference<Object>, String> initializations =
+    private final Map<PhantomReference<?>, String> initializations =
             Collections.synchronizedMap(new LinkedHashMap<>());
 
     /**
@@ -123,6 +123,7 @@ public enum InjectionControllerImpl implements IInjectionController
                             // unloaded object
                             if (initializations.containsKey(ref))
                             {
+
                                 LOGGER.log(Level.INFO, "Unloading object {0}", new Object[] {initializations.get(ref)});
                                 String name = initializations.remove(ref);
 
@@ -139,6 +140,11 @@ public enum InjectionControllerImpl implements IInjectionController
                                     }
                                 }
                             }
+                        }
+
+                        if (ref != null)
+                        {
+                            ref.clear();
                         }
 
                         // pause the thread if both maps are empty --> no injected classes available; either nothing got
