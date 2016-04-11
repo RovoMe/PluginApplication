@@ -13,7 +13,7 @@ import java.util.TimerTask;
  *
  * @author Roman Vottner
  */
-public class FileMonitorNotifier extends TimerTask
+class FileMonitorNotifier extends TimerTask
 {
     /** The map to keep track of files and the time of their last modification **/
     private Map<File, Long> files = null;
@@ -32,7 +32,7 @@ public class FileMonitorNotifier extends TimerTask
      * @param directory
      *         The directory to monitor
      */
-    public FileMonitorNotifier(Map<File, Long> files, Set<IDirectoryChangeListener> listener, File directory)
+    FileMonitorNotifier(Map<File, Long> files, Set<IDirectoryChangeListener> listener, File directory)
     {
         this.files = files;
         this.listeners = listener;

@@ -34,6 +34,7 @@ import java.io.File;
  * @author Roman Vottner
  * @see InjectionPluginManager
  */
+@SuppressWarnings("WeakerAccess")
 public class SimplePluginManager extends PluginManager
 {
     /** The reference to the one and only instance of the SimplePluginManager **/

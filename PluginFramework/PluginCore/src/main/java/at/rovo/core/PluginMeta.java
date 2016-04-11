@@ -16,6 +16,7 @@ import java.util.Set;
  *
  * @author Roman Vottner
  */
+@SuppressWarnings("WeakerAccess")
 public class PluginMeta
 {
     /** The name of the plug-in **/

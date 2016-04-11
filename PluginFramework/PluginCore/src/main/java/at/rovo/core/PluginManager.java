@@ -53,6 +53,7 @@ import java.util.logging.Logger;
  * @author Roman Vottner
  * @version 0.1
  */
+@SuppressWarnings("WeakerAccess")
 public abstract class PluginManager implements IDirectoryChangeListener
 {
     /** The logger of this class **/
@@ -88,14 +89,11 @@ public abstract class PluginManager implements IDirectoryChangeListener
     {
         this.pluginData = new HashMap<>();
         this.listeners = new CopyOnWriteArraySet<>();
-        // create the class loader which will hold the exported and required
-        // class definitions and therefore be responsible for their creation
+        // create the class loader which will hold the exported and required class definitions and therefore be
+        // responsible for their creation
         this.commonClassLoader = new DelegationClassLoader(this.getClass().getClassLoader());
 
-        this.waitForDependenciesThread = new Thread(new Runnable()
-        {
-            @Override
-            public void run()
+        this.waitForDependenciesThread = new Thread(() ->
             {
                 List<String> reload = new ArrayList<>();
                 while (!done)
@@ -114,20 +112,14 @@ public abstract class PluginManager implements IDirectoryChangeListener
                             {
                                 e.printStackTrace();
                             }
-                            // check if the dependencies of the plugin in
-                            // question are now available
-                            for (String plugin : waitingForDependencies)
-                            {
-                                reload.add(plugin);
-                            }
+                            // check if the dependencies of the plugin in question are now available
+                            reload.addAll(waitingForDependencies);
                         }
 
                         if (!reload.isEmpty())
                         {
-                            for (String plugin : reload)
-                            {
-                                reloadPlugin(plugin);
-                            }
+                            //noinspection Convert2MethodRef
+                            reload.forEach(plugin -> reloadPlugin(plugin));
                         }
                     }
                     else
@@ -146,7 +138,6 @@ public abstract class PluginManager implements IDirectoryChangeListener
                         }
                     }
                 }
-            }
         });
         this.waitForDependenciesThread.setName("WaitForDependencies");
         this.waitForDependenciesThread.setDaemon(true);
@@ -275,7 +266,6 @@ public abstract class PluginManager implements IDirectoryChangeListener
                 {
                     this.unload(pluginName);
                 }
-                System.gc();
                 break;
             default:
                 throw new IllegalArgumentException("Unknown FileAction provided!");
@@ -581,10 +571,7 @@ public abstract class PluginManager implements IDirectoryChangeListener
      */
     public void unloadAll()
     {
-        for (String plugin : this.pluginData.keySet())
-        {
-            unload(plugin);
-        }
+        pluginData.forEach((plugin, value) -> unload(plugin));
     }
 
     /**

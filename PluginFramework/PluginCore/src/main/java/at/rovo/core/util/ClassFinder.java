@@ -102,7 +102,7 @@ public final class ClassFinder
      * @param path
      *         The path to the directory or jar file to add to the currently managed class path
      */
-    public void addToClassPath(String path)
+    private void addToClassPath(String path)
     {
         if (path.endsWith(".jar") && !this.jarFiles.contains(path))
         {
@@ -149,7 +149,7 @@ public final class ClassFinder
      * @return A {@link List} of implementing classes for the provided interface inside jar files of the
      * <em>ClassFinder</em>s class path
      */
-    public List<Class<?>> findImplementingClassesInJarFiles(Class<?> iface, ClassLoader loader)
+    private List<Class<?>> findImplementingClassesInJarFiles(Class<?> iface, ClassLoader loader)
     {
         List<Class<?>> implementingClasses = new ArrayList<>();
         for (String file : this.jarFiles)
@@ -157,29 +157,7 @@ public final class ClassFinder
             // scan the jar file for all included classes
             for (String classFile : scanJarFileForClasses(new File(file)))
             {
-                Class<?> clazz;
-                try
-                {
-                    // now try to load the class
-                    if (loader == null)
-                    {
-                        clazz = Class.forName(classFile);
-                    }
-                    else
-                    {
-                        clazz = Class.forName(classFile, false, loader);
-                    }
-
-                    // and check if the class implements the provided interface
-                    if (iface.isAssignableFrom(clazz) && !clazz.equals(iface))
-                    {
-                        implementingClasses.add(clazz);
-                    }
-                }
-                catch (ClassNotFoundException e)
-                {
-                    e.printStackTrace();
-                }
+                this.loadClass(loader, classFile, iface, implementingClasses);
             }
         }
         return implementingClasses;
@@ -197,7 +175,7 @@ public final class ClassFinder
      * @return A {@link List} of implementing classes for the provided interface inside jar files of the
      * <em>ClassFinder</em>s class path
      */
-    public List<Class<?>> findImplementingClassesInDirectories(Class<?> iface, ClassLoader loader)
+    private List<Class<?>> findImplementingClassesInDirectories(Class<?> iface, ClassLoader loader)
     {
         List<Class<?>> implementingClasses = new ArrayList<>();
 
@@ -217,32 +195,50 @@ public final class ClassFinder
             // a.b.c for class files to be loaded, so convert them
             String classFile = this.convertPath(relativePath);
 
-            Class<?> clazz;
-            try
-            {
-                // now try to load the class 
-                if (loader == null)
-                {
-                    clazz = Class.forName(classFile);
-                }
-                else
-                {
-                    clazz = Class.forName(classFile, false, loader);
-                }
-
-                // and check if the class implements the provided interface
-                if (iface.isAssignableFrom(clazz) && !clazz.equals(iface))
-                {
-                    implementingClasses.add(clazz);
-                }
-            }
-            catch (ClassNotFoundException ex)
-            {
-                ex.printStackTrace();
-            }
+            this.loadClass(loader, classFile, iface, implementingClasses);
         }
 
         return implementingClasses;
+    }
+
+    /**
+     * Loads a class with the given <em>classFile</em> name via the provided <em>loader</em> and adds the loaded class
+     * to the list of <em>implementingClasses</em> if the loaded class is an instance of <em>iface</em>.
+     *
+     * @param loader
+     *         The classloader which should load the class or delegate the task to her parent
+     * @param classFile
+     *         The actual class to load
+     * @param iface
+     *         The interface the class should implement in order to be added to <em>implementingClasses</em>
+     * @param implementingClasses
+     *         A list of loaded classes that implement the given <em>iface</em> interface
+     */
+    private void loadClass(ClassLoader loader, String classFile, Class<?> iface, List<Class<?>> implementingClasses)
+    {
+        Class<?> clazz;
+        try
+        {
+            // now try to load the class
+            if (loader == null)
+            {
+                clazz = Class.forName(classFile);
+            }
+            else
+            {
+                clazz = Class.forName(classFile, false, loader);
+            }
+
+            // and check if the class implements the provided interface
+            if (iface.isAssignableFrom(clazz) && !clazz.equals(iface))
+            {
+                implementingClasses.add(clazz);
+            }
+        }
+        catch (ClassNotFoundException ex)
+        {
+            ex.printStackTrace();
+        }
     }
 
     /**
@@ -276,7 +272,7 @@ public final class ClassFinder
      *
      * @return A {@link List} of found class files within the directory
      */
-    public static List<File> findClassFilesInDirectory(File dir, boolean includeSubDir)
+    private static List<File> findClassFilesInDirectory(File dir, boolean includeSubDir)
     {
         return findFileInDirectory(dir, ".class", includeSubDir);
     }
@@ -323,7 +319,8 @@ public final class ClassFinder
      */
     private static void traverseDirectory(File directory, List<File> classFiles, String fileName, boolean includeSubDir)
     {
-        if (directory == null || !directory.isDirectory()) {
+        if (directory == null || !directory.isDirectory())
+        {
             throw new IllegalArgumentException("Provided directory is invalid and can't be traversed");
         }
         File[] files = directory.listFiles();

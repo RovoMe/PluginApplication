@@ -72,7 +72,7 @@ public enum InjectionControllerImpl implements IInjectionController
     /**
      * Contains a phantom reference to keep track of unloading events for instances injected
      **/
-    private final Map<PhantomReference<?>, String> initializations =
+    private final Map<? super Reference<?>, String> initializations =
             Collections.synchronizedMap(new LinkedHashMap<>());
 
     /**
@@ -230,7 +230,7 @@ public enum InjectionControllerImpl implements IInjectionController
             {
                 LOGGER.log(Level.INFO, "{0} loaded with class loader: {1}",
                            new Object[] {obj, obj.getClass().getClassLoader()});
-                PhantomReference<Object> ref = new PhantomReference<>(obj, refQueue);
+                Reference<?> ref = new PhantomReference<>(obj, refQueue);
                 boolean isEmpty = this.initializations.isEmpty();
                 this.initializations.put(ref, obj.toString());
                 // as we've added some data to the map and it was empty before wake-up the cleanup thread in order to
@@ -455,13 +455,13 @@ public enum InjectionControllerImpl implements IInjectionController
             // and add its annotated fields to this object
             // as those fields need to be injected too
             List<Field> superClassFields = this.getSuperClassFields(obj, required);
-            for (Field f : superClassFields)
+            superClassFields.forEach((Field f) ->
             {
                 if (!injectFields.contains(f))
                 {
                     injectFields.add(f);
                 }
-            }
+            });
 
             for (Field f : injectFields)
             {
@@ -534,7 +534,7 @@ public enum InjectionControllerImpl implements IInjectionController
                     {
                         try
                         {
-                            Method getInstance = toLoad.getMethod("getInstance", (Class<?>[]) null);
+                            Method getInstance = toLoad.getMethod("getInstance", (Class[]) null);
                             // create a new instance of the singleton class
                             getInstance.invoke(null, (Object[])null);
                             // as the object was initialized and stored in the singleton list
@@ -661,11 +661,11 @@ public enum InjectionControllerImpl implements IInjectionController
                     AccessibleObject.setAccessible(cons, true);
                     // iterate through all defined constructors
                     Constructor<T> defaultConstructor = null;
-                    for (int i = 0; i < cons.length; i++)
+                    for (Constructor<T> con : cons)
                     {
-                        if (cons[i].getParameterTypes().length == 0)
+                        if (con.getParameterTypes().length == 0)
                         {
-                            defaultConstructor = cons[i];
+                            defaultConstructor = con;
                             break;
                         }
                     }

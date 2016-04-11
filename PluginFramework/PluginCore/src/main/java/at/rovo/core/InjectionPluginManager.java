@@ -177,7 +177,7 @@ public class InjectionPluginManager extends PluginManager
      * @param loader
      *         A reference to the plugin's classloader
      */
-    protected Class<?> loadPlugin(PluginMeta meta, String className, StrategyClassLoader loader)
+    private Class<?> loadPlugin(PluginMeta meta, String className, StrategyClassLoader loader)
     {
         LOGGER.log(Level.FINE, "Trying to load {0}", new Object[] {className});
         try
