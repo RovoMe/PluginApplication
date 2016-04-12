@@ -27,6 +27,7 @@ import java.util.logging.Logger;
  *
  * @author Roman Vottner
  */
+@SuppressWarnings("Convert2MethodRef")
 public final class DelegationClassLoader extends ClassLoader
 {
     /** The logger of this class **/
@@ -95,6 +96,7 @@ public final class DelegationClassLoader extends ClassLoader
     {
         if (this.commonLoaders.containsKey(name))
         {
+            LOGGER.log(Level.INFO, "Unloading class {0}", new Object[] {name});
             this.commonLoaders.remove(name);
         }
     }
@@ -279,18 +281,11 @@ public final class DelegationClassLoader extends ClassLoader
 
             if (loader == null)
             {
-                this.commonLoaders.remove(loaderName);
+                removeLoader.add(loaderName);
             }
-
         }
         // now cleanup the cache if any loaders got unloaded
-        if (!commonLoaders.isEmpty())
-        {
-            for (String loaderName : removeLoader)
-            {
-                this.commonLoaders.remove(loaderName);
-            }
-        }
+        removeLoader.forEach((String loaderName) -> this.unload(loaderName));
         return resource;
     }
 
@@ -318,18 +313,12 @@ public final class DelegationClassLoader extends ClassLoader
 
             if (loader == null)
             {
-                this.commonLoaders.remove(loaderName);
+                removeLoader.add(loaderName);
             }
 
         }
         // now cleanup the cache if any loaders got unloaded
-        if (!commonLoaders.isEmpty())
-        {
-            for (String loaderName : removeLoader)
-            {
-                this.commonLoaders.remove(loaderName);
-            }
-        }
+        removeLoader.forEach((String loaderName) -> this.unload(loaderName));
         return enumerationEnum;
     }
 
@@ -357,17 +346,11 @@ public final class DelegationClassLoader extends ClassLoader
 
             if (loader == null)
             {
-                this.commonLoaders.remove(name);
+                removeLoader.add(name);
             }
         }
         // now cleanup the cache if any loaders got unloaded
-        if (!commonLoaders.isEmpty())
-        {
-            for (String name : removeLoader)
-            {
-                this.commonLoaders.remove(name);
-            }
-        }
+        removeLoader.forEach((String loaderName) -> this.unload(loaderName));
         return null;
     }
 
@@ -402,17 +385,11 @@ public final class DelegationClassLoader extends ClassLoader
 
             if (loader == null)
             {
-                this.commonLoaders.remove(name);
+                removeLoader.add(name);
             }
         }
         // now cleanup the cache if any loaders got unloaded
-        if (!commonLoaders.isEmpty())
-        {
-            for (String name : removeLoader)
-            {
-                this.commonLoaders.remove(name);
-            }
-        }
+        removeLoader.forEach((String loaderName) -> this.unload(loaderName));
         return hasLoadedClass;
     }
 }

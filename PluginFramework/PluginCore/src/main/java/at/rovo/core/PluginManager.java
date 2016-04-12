@@ -610,6 +610,7 @@ public abstract class PluginManager implements IDirectoryChangeListener
             meta.setClassLoader(null);
             meta.setClassObj(null);
 
+            this.commonClassLoader.unload(meta.getDeclaredClassName());
             this.pluginData.remove(name);
 
             for (IPluginListener listener : this.listeners)
