@@ -772,6 +772,9 @@ public abstract class PluginManager implements IDirectoryChangeListener
      */
     protected boolean checkDependencies(PluginMeta meta)
     {
+        if (meta == null) {
+            return true;
+        }
         boolean allClassesAvailable = true;
         // check if all dependencies are available in the common classloader
         Set<String> requiredClasses = meta.getRequiredClasses();

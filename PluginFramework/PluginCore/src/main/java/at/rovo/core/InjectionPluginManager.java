@@ -75,6 +75,11 @@ public class InjectionPluginManager extends PluginManager
     protected void reloadPlugin(String pluginName)
     {
         PluginMeta meta = this.pluginData.get(pluginName);
+        if (meta == null) {
+            LOGGER.log(Level.FINER, "No meta information available for plugin {0}", new Object[] { pluginName });
+            this.pluginData.remove(pluginName);
+            return;
+        }
         try
         {
             // check if all dependencies specified for the plug-in are available skip further processing if a
