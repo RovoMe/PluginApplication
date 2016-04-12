@@ -10,6 +10,7 @@ import at.rovo.console.command.UnloadCommand;
 import at.rovo.core.IPluginListener;
 import at.rovo.core.InjectionPluginManager;
 import at.rovo.core.PluginManager;
+import at.rovo.core.injection.InjectionControllerImpl;
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.URL;
@@ -44,6 +45,10 @@ public class Main implements IPluginListener
         Properties prop = new Properties();
         try
         {
+            // initialize the injection controller here as a delayed initialization in the instantiated plug-in will tie
+            // the classloader to the cleanup-thread and therefore create a memory leak as the classloader as well as
+            // all the loaded classes can't be garbage collected!
+            logger.log(Level.FINEST, "Initialized {0}", new Object[] { InjectionControllerImpl.INSTANCE });
             // create a new PluginManager
             PluginManager manager = InjectionPluginManager.getInstance();
             manager.addPluginListener(this);
